@@ -36,7 +36,10 @@ public:
         ACOS           = 110,
         ABS            = 111,
         SGN            = 112,
-        NORM           = 113
+        NORM           = 113,
+        // Piecewise Binary ops
+        MIN            = 114,
+        MAX            = 115
     };
 
     Op      op;
@@ -62,6 +65,8 @@ public:
     inline Expr *Minus(Expr *b_) { return AnyOp(Op::MINUS, b_); }
     inline Expr *Times(Expr *b_) { return AnyOp(Op::TIMES, b_); }
     inline Expr *Div  (Expr *b_) { return AnyOp(Op::DIV,   b_); }
+    inline Expr *Min  (Expr *b_) { return AnyOp(Op::MIN,   b_); } 
+    inline Expr *Max  (Expr *b_) { return AnyOp(Op::MAX,   b_); } 
 
     inline Expr *Negate() { return AnyOp(Op::NEGATE, NULL); }
     inline Expr *Sqrt  () { return AnyOp(Op::SQRT,   NULL); }

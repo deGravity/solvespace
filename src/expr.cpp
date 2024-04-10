@@ -274,6 +274,8 @@ int Expr::Children() const {
         case Op::MINUS:
         case Op::TIMES:
         case Op::DIV:
+        case Op::MIN:
+        case Op::MAX:
             return 2;
 
         case Op::NEGATE:
@@ -349,6 +351,17 @@ double Expr::Eval() const {
         case Op::TIMES:         return a->Eval() * b->Eval();
         case Op::DIV:           return a->Eval() / b->Eval();
 
+        case Op::MIN: {
+            double av = a->Eval();
+            double bv = b->Eval();
+            return av < bv ? av : bv;
+        }
+        case Op::MAX: {
+            double av = a->Eval();
+            double bv = b->Eval();
+            return av > bv ? av : bv;
+        }
+
         case Op::NEGATE:        return -(a->Eval());
         case Op::SQRT:          return sqrt(a->Eval());
         case Op::SQUARE:        { double r = a->Eval(); return r*r; }
@@ -385,6 +398,29 @@ Expr *Expr::PartialWrt(hParam p) const {
             da = a->PartialWrt(p);
             db = b->PartialWrt(p);
             return ((da->Times(b))->Minus(a->Times(db)))->Div(b->Square());
+
+        case Op::MIN: 
+            {
+                double va = a->Eval();
+                double vb = b->Eval();
+                if(va < vb) {
+                    da = a->PartialWrt(p);
+                    return da;
+                }
+                db = b->PartialWrt(p);
+                return db;
+            }
+        case Op::MAX: {
+            double va = a->Eval();
+            double vb = b->Eval();
+            if(va > vb) {
+                da = a->PartialWrt(p);
+                return da;
+            }
+            db = b->PartialWrt(p);
+            return db;
+        }
+
 
         case Op::SQRT:
             return (From(0.5)->Div(a->Sqrt()))->Times(a->PartialWrt(p));
@@ -468,6 +504,8 @@ Expr *Expr::FoldConstants() {
         case Op::TIMES:
         case Op::DIV:
         case Op::PLUS:
+        case Op::MIN:
+        case Op::MAX:
             // If both ops are known, then we can evaluate immediately
             if(n->a->op == Op::CONSTANT && n->b->op == Op::CONSTANT) {
                 double nv = n->Eval();
@@ -589,6 +627,9 @@ std::string Expr::Print() const {
 p:
             return "(" + a->Print() + " " + c + " " + b->Print() + ")";
             break;
+
+        case Op::MIN: return "(min " + a->Print() + " , " + b->Print() + ")";
+        case Op::MAX: return "(max " + a->Print() + " , " + b->Print() + ")";
 
         case Op::NEGATE:    return "(- " + a->Print() + ")";
         case Op::SQRT:      return "(sqrt " + a->Print() + ")";
@@ -753,6 +794,10 @@ ExprParser::Token ExprParser::Lex(std::string *error) {
             t = Token::From(TokenType::UNARY_OP, Expr::Op::ABS);
         } else if(s == "sgn") {
             t = Token::From(TokenType::UNARY_OP, Expr::Op::SGN);
+        } else if(s == "min") {
+            t = Token::From(TokenType::UNARY_OP, Expr::Op::MIN);
+        } else if(s == "max") {
+            t = Token::From(TokenType::UNARY_OP, Expr::Op::MAX);
         } else if(s == "pi") {
             t = Token::From(TokenType::OPERAND, Expr::Op::CONSTANT);
             t.expr->v = PI;

@@ -66,26 +66,69 @@ void Slvs_MakeQuaternion(double ux, double uy, double uz,
     *qz = q.vz;
 }
 
+int param_handle = 1;
+class SParam {
+public:
+    Param p;
+    Expr *e;
+
+    SParam(double value) {
+        p     = Param();
+        p.h.v = param_handle++;
+        p.val = value;
+        SK.param.Add(&p);
+        SYS.param.Add(&p);
+        e = Expr::From(p.h);
+    }
+
+    double v() {
+        return SK.GetParam(p.h)->val;
+    }
+};
+
 void Test_Ineq()
 {
     std::cout << "Running Test_Ineq" << std::endl;
 
+   
+    ConstraintBase c = {};
+
+
+    // Triangle Points
+    auto x1 = SParam(1);
+    auto x2 = SParam(3);
+    auto x3 = SParam(2);
+
+    auto y1 = SParam(0);
+    auto y2 = SParam(0);
+    auto y3 = SParam(1);
+
+    // Constrain Equilateral
+    auto d12 = x1.e->Minus(x2.e)->Square()->Plus(y1.e->Minus(y2.e)->Square())->Sqrt();
+    auto d13 = x1.e->Minus(x3.e)->Square()->Plus(y1.e->Minus(y3.e)->Square())->Sqrt();
+    auto d23 = x3.e->Minus(x2.e)->Square()->Plus(y3.e->Minus(y2.e)->Square())->Sqrt();
+
+    c.AddEq(&SYS.eq, d12->Minus(Expr::From(1.0)), 0);
+    c.AddEq(&SYS.eq, d13->Minus(Expr::From(1.0)), 1);
+    c.AddEq(&SYS.eq, d23->Minus(Expr::From(1.0)), 2);
+
+    // Bounding Box
+    auto bottom = y1.e->Min(y2.e->Min(y3.e));
+    auto top    = y1.e->Max(y2.e->Max(y3.e));
+    auto left   = x1.e->Min(x2.e->Min(x3.e));
+    auto right  = x1.e->Max(x2.e->Max(x3.e));
+
+    // Constrain Bounding Box to QIII
+    // top + s_top == 0, right + s_right == 0, s_top = -top, s_right = -right
+    auto s_top = SParam(-top->Eval());
+    c.AddEq(&SYS.eq, top->Plus(s_top.e), 3);
+    c.AddEq(&SYS.eq, s_top.e->Minus(s_top.e->Abs()), 4);
+
+    auto s_right = SParam(-right->Eval());
+    c.AddEq(&SYS.eq, right->Plus(s_right.e),5);
+    c.AddEq(&SYS.eq, s_right.e->Minus(s_right.e->Abs()), 6);
     
-
-    Param x = {};
-
-    x.h.v = 1;
-    x.val = 4.0;
-    SK.param.Add(&x);
-    SYS.param.Add(&x);
-
-    Param s = {};
-
-    s.h.v = 2;
-    s.val = -4.0;
-    SK.param.Add(&s);
-    SYS.param.Add(&s);
-
+    
     Group g = {};
     g.h.v   = 2;
 
@@ -95,17 +138,16 @@ void Test_Ineq()
     bool andFindBad = false; // ssys->calculateFaileds ? true : false;
     int dof         = 0;
 
-    ConstraintBase c = {};
-
-    auto Ex = Expr::From(x.h);
-    auto Es = Expr::From(s.h);
-
-    auto expr1 = Ex->Plus(Es);
-    auto expr2 = Es->Minus(Es->Abs());
-    c.AddEq(&SYS.eq, expr1, 0);
-    c.AddEq(&SYS.eq, expr2, 1);
-    SolveResult how = SYS.Solve(&g, NULL, &dof, &bad, andFindBad, /*andFindFree=*/false);
-    std::cout << "Solve Result: x = " << SK.GetParam(x.h)->val << " , s = " << SK.GetParam(s.h)->val << std::endl;
+    SolveResult how = SYS.Solve(&g, NULL, &dof, &bad, andFindBad, false);
+    
+    
+    
+    std::cout << "Solve Success = " << int(how) << std::endl;
+    std::cout << "\tp1 = (" << x1.v() << " , " << y1.v() << ")" << std::endl;
+    std::cout << "\tp2 = (" << x2.v() << " , " << y2.v() << ")" << std::endl;
+    std::cout << "\tp3 = (" << x3.v() << " , " << y3.v() << ")" << std::endl << std::endl;
+    std::cout << "\ttop = " << top->Eval() << "  s_top = " << s_top.v() << std::endl;
+    std::cout << "\tright = " << right->Eval() << "  s_right = " << s_right.v() << std::endl;
 }
 
 void Slvs_Solve(Slvs_System *ssys, Slvs_hGroup shg)
