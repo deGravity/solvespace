@@ -251,19 +251,23 @@ void Example2d()
 
 int main()
 {
+    Test_Ineq();
+    /*
     sys.param      = CheckMalloc(50*sizeof(sys.param[0]));
     sys.entity     = CheckMalloc(50*sizeof(sys.entity[0]));
     sys.constraint = CheckMalloc(50*sizeof(sys.constraint[0]));
 
     sys.failed  = CheckMalloc(50*sizeof(sys.failed[0]));
     sys.faileds = 50;
-
+    */
     /*Example3d();*/
+    /*
     for(;;) {
         Example2d();
         sys.params = sys.constraints = sys.entities = 0;
         break;
     }
+    */
     return 0;
 }
 

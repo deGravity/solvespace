@@ -26,6 +26,7 @@ extern "C" {
 
 #ifdef _MSC_VER
 typedef unsigned __int32 uint32_t;
+typedef unsigned __int64 uint64_t;
 #else
 #include <stdint.h>
 #endif
@@ -33,7 +34,7 @@ typedef unsigned __int32 uint32_t;
 typedef uint32_t Slvs_hParam;
 typedef uint32_t Slvs_hEntity;
 typedef uint32_t Slvs_hConstraint;
-typedef uint32_t Slvs_hGroup;
+typedef uint64_t Slvs_hGroup;
 
 /* To obtain the 3d (not projected into a workplane) of a constraint or
  * an entity, specify this instead of the workplane. */
@@ -199,6 +200,7 @@ typedef struct {
 
 DLL void Slvs_Solve(Slvs_System *sys, Slvs_hGroup hg);
 
+DLL void Test_Ineq();
 
 /* Our base coordinate system has basis vectors
  *     (1, 0, 0)  (0, 1, 0)  (0, 0, 1)

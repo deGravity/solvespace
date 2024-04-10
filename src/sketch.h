@@ -53,7 +53,7 @@ enum class Command : uint32_t;
 class hGroup {
 public:
     // bits 15: 0   -- group index
-    uint32_t v;
+    uint64_t v;
 
     inline hEntity entity(int i) const;
     inline hParam param(int i) const;

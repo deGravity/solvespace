@@ -7,6 +7,7 @@
 #include "solvespace.h"
 #define EXPORT_DLL
 #include <slvs.h>
+#include <iostream>
 
 Sketch SolveSpace::SK = {};
 static System SYS;
@@ -63,6 +64,13 @@ void Slvs_MakeQuaternion(double ux, double uy, double uz,
     *qx = q.vx;
     *qy = q.vy;
     *qz = q.vz;
+}
+
+void Test_Ineq()
+{
+    std::cout << "Running Test_Ineq" << std::endl;
+
+
 }
 
 void Slvs_Solve(Slvs_System *ssys, Slvs_hGroup shg)

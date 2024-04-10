@@ -17,7 +17,7 @@ cdef extern from "slvs.h" nogil:
     ctypedef uint32_t Slvs_hParam
     ctypedef uint32_t Slvs_hEntity
     ctypedef uint32_t Slvs_hConstraint
-    ctypedef uint32_t Slvs_hGroup
+    ctypedef uint64_t Slvs_hGroup
 
     # Virtual work plane entity
     Slvs_hEntity SLVS_FREE_IN_3D
