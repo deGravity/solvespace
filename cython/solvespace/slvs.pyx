@@ -112,6 +112,7 @@ class ResultFlag(IntEnum):
     INCONSISTENT = auto()
     DIDNT_CONVERGE = auto()
     TOO_MANY_UNKNOWNS = auto()
+    REDUNDANT_OKAY = auto()
 
 
 cdef class Params:
@@ -350,7 +351,7 @@ cdef class SolverSystem:
     """
 
     def __cinit__(self):
-        self.g = 0
+        self.g = 2
 
     def __reduce__(self):
         return (_create_sys, (self.dof_v, self.g, self.param_list, self.entity_list, self.cons_list))
@@ -374,7 +375,7 @@ cdef class SolverSystem:
     cpdef void clear(self):
         """Clear the system."""
         self.dof_v = 0
-        self.g = 0
+        self.g = 2
         self.param_list.clear()
         self.entity_list.clear()
         self.cons_list.clear()

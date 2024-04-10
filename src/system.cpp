@@ -337,7 +337,7 @@ void System::WriteEquationsExceptFor(hConstraint hc, Group *g) {
     // Generate all the equations from constraints in this group
     for(auto &con : SK.constraint) {
         ConstraintBase *c = &con;
-        if(c->group != g->h) continue;
+        if (g->h.v % c->group.v != 0) continue; //(c->group != g->h) continue; -- Hack: Factorizable Groups
         if(c->h == hc) continue;
 
         if(c->HasLabel() && c->type != Constraint::Type::COMMENT &&
@@ -360,7 +360,7 @@ void System::WriteEquationsExceptFor(hConstraint hc, Group *g) {
     // And the equations from entities
     for(auto &ent : SK.entity) {
         EntityBase *e = &ent;
-        if(e->group != g->h) continue;
+        if (g->h.v % e->group.v != 0) continue; //(e->group != g->h) continue; -- Hack: Factorizable Groups
 
         e->GenerateEquations(&eq);
     }
@@ -381,7 +381,7 @@ void System::FindWhichToRemoveToFixJacobian(Group *g, List<hConstraint> *bad, bo
             }
 
             ConstraintBase *c = &con;
-            if(c->group != g->h) continue;
+            if (g->h.v % c->group.v != 0) continue; // (c->group != g->h) continue; -- Hack: Factorizable Groups
             if((c->type == Constraint::Type::POINTS_COINCIDENT && a == 0) ||
                (c->type != Constraint::Type::POINTS_COINCIDENT && a == 1))
             {

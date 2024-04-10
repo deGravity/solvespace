@@ -75,7 +75,7 @@ void Slvs_Solve(Slvs_System *ssys, Slvs_hGroup shg)
         p.h.v = sp->h;
         p.val = sp->val;
         SK.param.Add(&p);
-        if(sp->group == shg) {
+        if(shg % sp->group == 0) { // Hack - Factorizable Groups
             SYS.param.Add(&p);
         }
     }
@@ -217,9 +217,11 @@ default: dbp("bad constraint type %d", sc->type); return;
             ssys->result = SLVS_RESULT_DIDNT_CONVERGE;
             break;
 
-        case SolveResult::REDUNDANT_DIDNT_CONVERGE:
-        case SolveResult::REDUNDANT_OKAY:
+        case SolveResult::REDUNDANT_DIDNT_CONVERGE: 
             ssys->result = SLVS_RESULT_INCONSISTENT;
+            break;
+        case SolveResult::REDUNDANT_OKAY: 
+            ssys->result = SLVS_RESULT_REDUNDANT_OKAY;
             break;
 
         case SolveResult::TOO_MANY_UNKNOWNS:
