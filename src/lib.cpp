@@ -70,17 +70,19 @@ void Test_Ineq()
 {
     std::cout << "Running Test_Ineq" << std::endl;
 
+    
+
     Param x = {};
 
     x.h.v = 1;
-    x.val = 1.0;
+    x.val = 4.0;
     SK.param.Add(&x);
     SYS.param.Add(&x);
 
     Param s = {};
 
     s.h.v = 2;
-    s.val = 0.0;
+    s.val = -4.0;
     SK.param.Add(&s);
     SYS.param.Add(&s);
 
@@ -94,9 +96,13 @@ void Test_Ineq()
     int dof         = 0;
 
     ConstraintBase c = {};
-    auto expr = Expr::From(x.h)->Minus(Expr::From(-2.0));
-    auto expr2       = Expr::From(x.h)->Minus(Expr::From(s.h));
-    c.AddEq(&SYS.eq, expr, 0);
+
+    auto Ex = Expr::From(x.h);
+    auto Es = Expr::From(s.h);
+
+    auto expr1 = Ex->Plus(Es);
+    auto expr2 = Es->Minus(Es->Abs());
+    c.AddEq(&SYS.eq, expr1, 0);
     c.AddEq(&SYS.eq, expr2, 1);
     SolveResult how = SYS.Solve(&g, NULL, &dof, &bad, andFindBad, /*andFindFree=*/false);
     std::cout << "Solve Result: x = " << SK.GetParam(x.h)->val << " , s = " << SK.GetParam(s.h)->val << std::endl;
