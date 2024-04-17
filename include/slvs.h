@@ -35,6 +35,8 @@ typedef uint32_t Slvs_hParam;
 typedef uint32_t Slvs_hEntity;
 typedef uint32_t Slvs_hConstraint;
 typedef uint64_t Slvs_hGroup;
+typedef uint32_t Slvs_hExpr;
+typedef uint32_t Slvs_hRel;
 
 /* To obtain the 3d (not projected into a workplane) of a constraint or
  * an entity, specify this instead of the workplane. */
@@ -79,6 +81,48 @@ typedef struct {
 
     Slvs_hParam     param[4];
 } Slvs_Entity;
+
+#define SLVS_X_PARAM 90000
+#define SLVS_X_CONST 90001
+#define SLVS_X_PLUS 90002
+#define SLVS_X_MINUS 90003
+#define SLVS_X_TIMES 90004
+
+#define SLVS_X_DIV 90005
+#define SLVS_X_MIN 90006
+#define SLVS_X_MAX 90007
+
+#define SLVS_X_NEGATE 90008
+#define SLVS_X_SQRT 90009
+#define SLVS_X_SQUARE 90010
+#define SLVS_X_SIN 90011
+#define SLVS_X_COS 90012
+#define SLVS_X_ASIN 90013
+#define SLVS_X_ACOS 90014
+#define SLVS_X_ABS 90015
+#define SLVS_X_SGN 90016
+#define SLVS_X_NORM 90017
+
+#define SLVS_X_AND 90018
+
+#define SLVS_X_EQUAL 90019
+#define SLVS_X_LTE 90020
+
+
+typedef struct {
+    Slvs_hExpr h;
+    int type;
+    Slvs_hParam param;
+    double val;
+    Slvs_hExpr arg1;
+    Slvs_hExpr arg2;
+} Slvs_Expr;
+
+typedef struct {
+    Slvs_hRel h;
+    Slvs_hGroup group;
+    Slvs_hExpr expr;
+} Slvs_Rel;
 
 #define SLVS_C_POINTS_COINCIDENT        100000
 #define SLVS_C_PT_PT_DISTANCE           100001
@@ -157,6 +201,16 @@ typedef struct {
     Slvs_Constraint     *constraint;
     int                 constraints;
 
+    /*
+    * Expressions and relationships. Uses the same conventions as above.
+    * Additionally, we assume that the handles (hExpr and hRel) correspond
+    * to array positions directly
+    */
+    Slvs_Expr *expr;
+    int exprs;
+    Slvs_Rel *rel;
+    int rels;
+
     /* If a parameter corresponds to a point (distance, normal, etc.) being
      * dragged, then specify it here. This will cause the solver to favor
      * that parameter, and attempt to change it as little as possible even
@@ -234,6 +288,123 @@ static inline Slvs_Param Slvs_MakeParam(Slvs_hParam h, Slvs_hGroup group, double
     r.val = val;
     return r;
 }
+
+static inline Slvs_Expr Slvs_MakeExpr(Slvs_hExpr h, int type,
+                                      Slvs_hParam param, double val,
+                                      Slvs_hExpr arg1, Slvs_hExpr arg2)
+{
+    Slvs_Expr r;
+    memset(&r, 0, sizeof(r));
+    r.h = h;
+    r.type = type;
+    r.param = param;
+    r.val   = val;
+    r.arg1  = arg1;
+    r.arg2  = arg2;
+    return r;
+}
+
+static inline Slvs_Expr Slvs_MakeExpr_Param(Slvs_hExpr h,
+                                            Slvs_hParam p)
+{
+    return Slvs_MakeExpr(h, SLVS_X_PARAM, p, 0, 0, 0);
+}
+
+static inline Slvs_Expr Slvs_MakeExpr_Const(Slvs_hExpr h, double val) {
+    return Slvs_MakeExpr(h, SLVS_X_CONST, 0, val, 0, 0);
+}
+
+static inline Slvs_Expr Slvs_MakeExpr_Plus(Slvs_hExpr h, 
+                                           Slvs_hExpr arg1, Slvs_hExpr arg2) {
+    return Slvs_MakeExpr(h, SLVS_X_PLUS, 0, 0, arg1, arg2);
+}
+
+static inline Slvs_Expr Slvs_MakeExpr_Minus(Slvs_hExpr h, Slvs_hExpr arg1,
+                                           Slvs_hExpr arg2) {
+    return Slvs_MakeExpr(h, SLVS_X_MINUS, 0, 0, arg1, arg2);
+}
+
+static inline Slvs_Expr Slvs_MakeExpr_Times(Slvs_hExpr h, Slvs_hExpr arg1,
+                                            Slvs_hExpr arg2) {
+    return Slvs_MakeExpr(h, SLVS_X_TIMES, 0, 0, arg1, arg2);
+}
+
+static inline Slvs_Expr Slvs_MakeExpr_Div(Slvs_hExpr h, Slvs_hExpr arg1,
+                                            Slvs_hExpr arg2) {
+    return Slvs_MakeExpr(h, SLVS_X_DIV, 0, 0, arg1, arg2);
+}
+
+static inline Slvs_Expr Slvs_MakeExpr_Min(Slvs_hExpr h, Slvs_hExpr arg1,
+                                            Slvs_hExpr arg2) {
+    return Slvs_MakeExpr(h, SLVS_X_MIN, 0, 0, arg1, arg2);
+}
+
+static inline Slvs_Expr Slvs_MakeExpr_Max(Slvs_hExpr h, Slvs_hExpr arg1,
+                                            Slvs_hExpr arg2) {
+    return Slvs_MakeExpr(h, SLVS_X_MAX, 0, 0, arg1, arg2);
+}
+
+static inline Slvs_Expr Slvs_MakeExpr_Negate(Slvs_hExpr h, Slvs_hExpr arg1) {
+    return Slvs_MakeExpr(h, SLVS_X_NEGATE, 0, 0, arg1, 0);
+}
+
+static inline Slvs_Expr Slvs_MakeExpr_Sqrt(Slvs_hExpr h, Slvs_hExpr arg1) {
+    return Slvs_MakeExpr(h, SLVS_X_SQRT, 0, 0, arg1, 0);
+}
+
+static inline Slvs_Expr Slvs_MakeExpr_Square(Slvs_hExpr h, Slvs_hExpr arg1) {
+    return Slvs_MakeExpr(h, SLVS_X_SQUARE, 0, 0, arg1, 0);
+}
+
+static inline Slvs_Expr Slvs_MakeExpr_Sin(Slvs_hExpr h, Slvs_hExpr arg1) {
+    return Slvs_MakeExpr(h, SLVS_X_SIN, 0, 0, arg1, 0);
+}
+
+static inline Slvs_Expr Slvs_MakeExpr_Cos(Slvs_hExpr h, Slvs_hExpr arg1) {
+    return Slvs_MakeExpr(h, SLVS_X_COS, 0, 0, arg1, 0);
+}
+
+static inline Slvs_Expr Slvs_MakeExpr_ASin(Slvs_hExpr h, Slvs_hExpr arg1) {
+    return Slvs_MakeExpr(h, SLVS_X_ASIN, 0, 0, arg1, 0);
+}
+
+static inline Slvs_Expr Slvs_MakeExpr_ACos(Slvs_hExpr h, Slvs_hExpr arg1) {
+    return Slvs_MakeExpr(h, SLVS_X_ACOS, 0, 0, arg1, 0);
+}
+
+static inline Slvs_Expr Slvs_MakeExpr_Abs(Slvs_hExpr h, Slvs_hExpr arg1) {
+    return Slvs_MakeExpr(h, SLVS_X_ABS, 0, 0, arg1, 0);
+}
+
+static inline Slvs_Expr Slvs_MakeExpr_Sgn(Slvs_hExpr h, Slvs_hExpr arg1) {
+    return Slvs_MakeExpr(h, SLVS_X_SGN, 0, 0, arg1, 0);
+}
+
+static inline Slvs_Expr Slvs_MakeExpr_Norm(Slvs_hExpr h, Slvs_hExpr arg1) {
+    return Slvs_MakeExpr(h, SLVS_X_NORM, 0, 0, arg1, 0);
+}
+
+static inline Slvs_Expr Slvs_MakeExpr_And(Slvs_hExpr h, Slvs_hExpr arg1, Slvs_hExpr arg2) {
+    return Slvs_MakeExpr(h, SLVS_X_AND, 0, 0, arg1, arg2);
+}
+
+static inline Slvs_Expr Slvs_MakeExpr_Equal(Slvs_hExpr h, Slvs_hExpr arg1, Slvs_hExpr arg2) {
+    return Slvs_MakeExpr(h, SLVS_X_EQUAL, 0, 0, arg1, arg2);
+}
+
+static inline Slvs_Expr Slvs_MakeExpr_LTE(Slvs_hExpr h, Slvs_hExpr arg1, Slvs_hExpr arg2) {
+    return Slvs_MakeExpr(h, SLVS_X_LTE, 0, 0, arg1, arg2);
+}
+
+static inline Slvs_Rel Slvs_MakeRel(Slvs_hRel h, Slvs_hGroup group, Slvs_hExpr expr) {
+    Slvs_Rel r;
+    memset(&r, 0, sizeof(r));
+    r.h = h;
+    r.group = group;
+    r.expr  = expr;
+    return r;
+}
+
 static inline Slvs_Entity Slvs_MakePoint2d(Slvs_hEntity h, Slvs_hGroup group,
                                            Slvs_hEntity wrkpl,
                                            Slvs_hParam u, Slvs_hParam v)

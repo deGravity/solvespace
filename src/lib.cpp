@@ -8,6 +8,7 @@
 #define EXPORT_DLL
 #include <slvs.h>
 #include <iostream>
+#include <vector>
 
 Sketch SolveSpace::SK = {};
 static System SYS;
@@ -150,6 +151,108 @@ void Test_Ineq()
     std::cout << "\tright = " << right->Eval() << "  s_right = " << s_right.v() << std::endl;
 }
 
+Expr *GetExpression(Slvs_System *ssys, Slvs_Expr *sexpr, ConstraintBase *c) {
+    Expr *arg1;
+    Expr *arg2;
+
+    // Base Cases, and populate the second argument if binary operation    
+    switch(sexpr->type) {
+    case SLVS_X_PARAM: {
+        hParam hp;
+        hp.v = sexpr->param;
+        return Expr::From(hp); // TODO -- do we need to go through the sketch first?
+    }
+    case SLVS_X_CONST: return Expr::From(sexpr->val);
+    case SLVS_X_PLUS:
+    case SLVS_X_MINUS:
+    case SLVS_X_TIMES:
+    case SLVS_X_DIV:
+    case SLVS_X_MIN:
+    case SLVS_X_MAX: arg2 = GetExpression(ssys, &ssys->expr[sexpr->arg2], c); break;
+    default: break;
+    }
+    // All non-base cases have an arg1
+    arg1 = GetExpression(ssys, &ssys->expr[sexpr->arg1], c);
+
+    switch(sexpr->type) {
+    case SLVS_X_PLUS: return arg1->Plus(arg2);
+    case SLVS_X_MINUS: return arg1->Minus(arg2);
+    case SLVS_X_TIMES: return arg1->Times(arg2);
+    case SLVS_X_DIV: return arg1->Div(arg2);
+    case SLVS_X_MIN: return arg1->Min(arg2);
+    case SLVS_X_MAX: return arg1->Max(arg2);
+    case SLVS_X_NEGATE: return arg1->Negate();
+    case SLVS_X_SQRT: return arg1->Sqrt();
+    case SLVS_X_SQUARE: return arg1->Square();
+    case SLVS_X_SIN: return arg1->Sin();
+    case SLVS_X_COS: return arg1->Cos();
+    case SLVS_X_ASIN: return arg1->ASin();
+    case SLVS_X_ACOS: return arg1->ACos();
+    case SLVS_X_ABS: return arg1->Abs();
+    case SLVS_X_SGN: return arg1->Sgn();
+    case SLVS_X_NORM: return arg1->Norm();
+    default: dbp("not an arithmetic operator, param, or const %d", sexpr->type); return Expr::From(1); // TODO - better default?
+    }
+}
+
+void AddEquality(Slvs_System *ssys, Slvs_Expr *sexpr, IdList<Param, hParam> *genParams,
+                 ConstraintBase *c, int idx) {
+    auto lhs = GetExpression(ssys, &ssys->expr[sexpr->arg1], c);
+    auto rhs = GetExpression(ssys, &ssys->expr[sexpr->arg2], c);
+    c->AddEq(&SYS.eq, lhs->Minus(rhs), idx);
+}
+
+void AddInequality(Slvs_System *ssys, Slvs_Expr *sexpr, IdList<Param, hParam> *genParams,
+                 ConstraintBase *c, int idx) {
+    auto lhs = GetExpression(ssys, &ssys->expr[sexpr->arg1], c);
+    auto rhs = GetExpression(ssys, &ssys->expr[sexpr->arg2], c);
+    Param s  = {};
+    s.val    = rhs->Minus(lhs)->Eval(); // Initialize slack var so original ineq holds
+    SK.param.AddAndAssignId(&s);
+    SYS.param.Add(&s);
+    auto slack = Expr::From(s.h);
+    c->AddEq(&SYS.eq, lhs->Minus(rhs)->Plus(slack), idx); // lhs <= rhs
+    c->AddEq(&SYS.eq, slack->Minus(slack->Abs()), idx + 1); // slack >= 0
+}
+
+void AddRelation(Slvs_System *ssys, Slvs_Rel *srel, IdList<Param, hParam> *genParams, ConstraintBase *c) {
+    // Get a list of expression pointers (one for each AND-ed equality or inequality
+    Slvs_Expr *expr;
+    std::vector<Slvs_hExpr> equations;
+    std::vector<Slvs_hExpr> to_explore;
+    to_explore.push_back(srel->expr);
+    while(!to_explore.empty()) {
+        Slvs_hExpr curr = to_explore.back();
+        to_explore.pop_back();
+        expr = &ssys->expr[curr];
+        switch(expr->type) {
+        case SLVS_X_AND: 
+            to_explore.push_back(expr->arg1); 
+            to_explore.push_back(expr->arg2);
+            break;
+        case SLVS_X_EQUAL:
+        case SLVS_X_LTE: 
+            equations.push_back(curr); 
+            break;
+        default: dbp("not an equivalence relation %d", expr->type); return;
+        }
+    }
+    int idx = 0;
+    for(auto eq : equations) {
+        expr = &ssys->expr[eq];
+        switch(expr->type) {
+        case SLVS_X_EQUAL:
+            AddEquality(ssys, expr, genParams, c, idx);
+            idx += 1;
+            break;
+        case SLVS_X_LTE: AddInequality(ssys, expr, genParams, c, idx); 
+            idx += 2; // Inequalities have a secondary slack variable constraint
+            break;
+            
+        }
+    }
+}
+
 void Slvs_Solve(Slvs_System *ssys, Slvs_hGroup shg)
 {
     int i;
@@ -281,6 +384,29 @@ default: dbp("bad constraint type %d", sc->type); return;
         if(ssys->dragged[i]) {
             hParam hp = { ssys->dragged[i] };
             SYS.dragged.Add(&hp);
+        }
+    }
+
+    // Additional Logic to add in Directly Specified Constraint Equations
+    {
+        
+        
+        for(i = 0; i < ssys->rels; ++i) {
+            ConstraintBase c = {}; // Dummy Constraint Base to access generation methods
+            c.h.v            = SK.constraint.MaximumId() + i + 1; // unique constraint id to avoid collisions
+            Slvs_Rel *srel = &(ssys->rel[i]);
+            if(shg % srel->group == 0) { // HACK - Factorizable Groups
+                AddRelation(ssys, srel, &params, &c);
+                // Copied from constraint loop.
+                if(!params.IsEmpty()) {
+                    for(Param &p : params) {
+                        //p.h    = SK.param.AddAndAssignId(&p);
+                        //SYS.param.Add(&p);
+                        //SK.param.Add(&p); // TODO - Should we add slack params to the sketch?
+                    }
+                    params.Clear();
+                }
+            }
         }
     }
 
