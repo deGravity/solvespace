@@ -295,12 +295,14 @@ void ExampleIneq() {
     sys.entity[sys.entities++] = Slvs_MakeLineSegment(402, g, 200, 303, 301);
 
     /* Equilateral Triangle Constraints */
+    
     sys.constraint[sys.constraints++] =
         Slvs_MakeConstraint(1, g, SLVS_C_PT_PT_DISTANCE, 200, 1.0, 301, 302, 0, 0);
     sys.constraint[sys.constraints++] =
         Slvs_MakeConstraint(2, g, SLVS_C_PT_PT_DISTANCE, 200, 1.0, 302, 303, 0, 0);
     sys.constraint[sys.constraints++] =
         Slvs_MakeConstraint(3, g, SLVS_C_PT_PT_DISTANCE, 200, 1.0, 303, 301, 0, 0);
+    
 
     /* Add the Bounding Box Expressions
     * bottom = min(12, 14, 16)
@@ -343,19 +345,31 @@ void ExampleIneq() {
     /* And solve. */
     Slvs_Solve(&sys, g);
 
-    if(sys.result == SLVS_RESULT_OKAY) {
-        printf("solved okay\n");
-        printf("line from (%.3f %.3f) to (%.3f %.3f)\n", sys.param[7].val, sys.param[8].val,
-               sys.param[9].val, sys.param[10].val);
+    
+    printf("Solve Result: ");
+    switch(sys.result) {
+    case SLVS_RESULT_OKAY: printf("OKAY"); break;
+    case SLVS_RESULT_DIDNT_CONVERGE: printf("DIDNT_CONVERGE"); break;
+    case SLVS_RESULT_REDUNDANT_OKAY: printf("REDUNDANT_OKAY"); break;
+    case SLVS_RESULT_INCONSISTENT: printf("REDUNDANT_DIDNT_CONVERGE"); break;
+    case SLVS_RESULT_TOO_MANY_UNKNOWNS: printf("TOO_MANY_UNKNOWNS"); break;
+    }
 
-        printf("arc center (%.3f %.3f) start (%.3f %.3f) finish (%.3f %.3f)\n", sys.param[11].val,
-               sys.param[12].val, sys.param[13].val, sys.param[14].val, sys.param[15].val,
-               sys.param[16].val);
+    double x1 = sys.param[10].val;
+    double y1 = sys.param[11].val;
+    double x2 = sys.param[12].val;
+    double y2 = sys.param[13].val;
+    double x3 = sys.param[14].val;
+    double y3 = sys.param[15].val;
 
-        printf("circle center (%.3f %.3f) radius %.3f\n", sys.param[17].val, sys.param[18].val,
-               sys.param[19].val);
-        printf("%d DOF\n", sys.dof);
-    } else {
+    printf("\tp1 = (%f , %f)\n", x1, y1);
+    printf("\tp2 = (%f , %f)\n", x2, y2);
+    printf("\tp3 = (%f , %f)\n", x3, y3);
+    //std::cout << "\ttop = " << top->Eval() << "  s_top = " << s_top.v() << std::endl;
+    //std::cout << "\tright = " << right->Eval() << "  s_right = " << s_right.v() << std::endl;
+
+
+    if(sys.result != SLVS_RESULT_OKAY) {
         int i;
         printf("solve failed: problematic constraints are:");
         for(i = 0; i < sys.faileds; i++) {

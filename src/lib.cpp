@@ -141,9 +141,16 @@ void Test_Ineq()
 
     SolveResult how = SYS.Solve(&g, NULL, &dof, &bad, andFindBad, false);
     
-    
-    
-    std::cout << "Solve Success = " << int(how) << std::endl;
+    std::string success_message;
+    switch(how) {
+    case SolveResult::OKAY: success_message = "OKAY"; break;
+    case SolveResult::DIDNT_CONVERGE: success_message = "DIDNT_CONVERGE"; break;
+    case SolveResult::REDUNDANT_OKAY: success_message = "REDUNDANT_OKAY"; break;
+    case SolveResult::REDUNDANT_DIDNT_CONVERGE: success_message = "REDUNDANT_DIDNT_CONVERGE"; break;
+    case SolveResult::TOO_MANY_UNKNOWNS: success_message = "TOO_MANY_UNKNOWNS"; break;
+    }
+
+    std::cout << "Solve Success = " << success_message << std::endl;
     std::cout << "\tp1 = (" << x1.v() << " , " << y1.v() << ")" << std::endl;
     std::cout << "\tp2 = (" << x2.v() << " , " << y2.v() << ")" << std::endl;
     std::cout << "\tp3 = (" << x3.v() << " , " << y3.v() << ")" << std::endl << std::endl;
@@ -393,7 +400,7 @@ default: dbp("bad constraint type %d", sc->type); return;
         
         for(i = 0; i < ssys->rels; ++i) {
             ConstraintBase c = {}; // Dummy Constraint Base to access generation methods
-            c.h.v            = SK.constraint.MaximumId() + i + 1; // unique constraint id to avoid collisions
+            c.h.v            = SK.constraint.MaximumId() + 30*i + 1; // unique constraint id to avoid collisions
             Slvs_Rel *srel = &(ssys->rel[i]);
             if(shg % srel->group == 0) { // HACK - Factorizable Groups
                 AddRelation(ssys, srel, &params, &c);
@@ -416,7 +423,7 @@ default: dbp("bad constraint type %d", sc->type); return;
     List<hConstraint> bad = {};
 
     // Now we're finally ready to solve!
-    bool andFindBad = ssys->calculateFaileds ? true : false;
+        bool andFindBad = ssys->calculateFaileds ? true : false;
     SolveResult how = SYS.Solve(&g, NULL, &(ssys->dof), &bad, andFindBad, /*andFindFree=*/false);
 
     switch(how) {
