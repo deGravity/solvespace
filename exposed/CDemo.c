@@ -306,23 +306,26 @@ void ExampleIneq() {
     * bottom = min(12, 14, 16)
     * top = max(12 ,14, 16)
     * left = min(11, 13, 15)
-    * right = max(11, 13, 15
+    * right = max(11, 13, 15)
     */
 
     sys.expr[sys.exprs++] = Slvs_MakeExpr_Param(0, 11); // x1
     sys.expr[sys.exprs++] = Slvs_MakeExpr_Param(1, 12); // y1
+
     sys.expr[sys.exprs++] = Slvs_MakeExpr_Param(2, 13); // x2
     sys.expr[sys.exprs++] = Slvs_MakeExpr_Param(3, 14); // y2
+
     sys.expr[sys.exprs++] = Slvs_MakeExpr_Param(4, 15); // x3
     sys.expr[sys.exprs++] = Slvs_MakeExpr_Param(5, 16); // y3
+
     sys.expr[sys.exprs++] = Slvs_MakeExpr_Min(6, 0, 2);
     sys.expr[sys.exprs++] = Slvs_MakeExpr_Min(7, 6, 4); // left
-    sys.expr[sys.exprs++] = Slvs_MakeExpr_Max(8, 0, 2);
-    sys.expr[sys.exprs++] = Slvs_MakeExpr_Max(9, 8, 4); // right
+    sys.expr[sys.exprs++] = Slvs_MakeExpr_Max(8, 2, 4);
+    sys.expr[sys.exprs++] = Slvs_MakeExpr_Max(9, 0, 8); // right
     sys.expr[sys.exprs++] = Slvs_MakeExpr_Min(10, 1, 3);
-    sys.expr[sys.exprs++] = Slvs_MakeExpr_Min(11, 6, 5); // bottom
-    sys.expr[sys.exprs++] = Slvs_MakeExpr_Max(12, 1, 3);
-    sys.expr[sys.exprs++] = Slvs_MakeExpr_Max(13, 8, 5); // top
+    sys.expr[sys.exprs++] = Slvs_MakeExpr_Min(11, 5, 10); // bottom
+    sys.expr[sys.exprs++] = Slvs_MakeExpr_Max(12, 3, 5);
+    sys.expr[sys.exprs++] = Slvs_MakeExpr_Max(13, 1, 12); // top
     
     sys.expr[sys.exprs++] = Slvs_MakeExpr_Const(14, 0.0); // 0.0
 
@@ -330,7 +333,7 @@ void ExampleIneq() {
     sys.expr[sys.exprs++] = Slvs_MakeExpr_LTE(16, 13, 14); // top <= 0
 
     sys.rel[sys.rels++] = Slvs_MakeRel(0, g, 15);
-    sys.rel[sys.rels++] = Slvs_MakeRel(0, g, 16);
+    sys.rel[sys.rels++] = Slvs_MakeRel(1, g, 16);
 
    
     /* If the solver fails, then ask it to report which constraints caused
@@ -369,6 +372,8 @@ void ExampleIneq() {
 
 int main()
 {
+
+    //Test_Ineq();
     
     sys.param      = CheckMalloc(50*sizeof(sys.param[0]));
     sys.entity     = CheckMalloc(50*sizeof(sys.entity[0]));
@@ -380,6 +385,7 @@ int main()
     sys.faileds = 50;
     
     ExampleIneq();
+    
 
     /*Example3d();*/
     

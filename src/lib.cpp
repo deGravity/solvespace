@@ -122,11 +122,11 @@ void Test_Ineq()
     // Constrain Bounding Box to QIII
     // top + s_top == 0, right + s_right == 0, s_top = -top, s_right = -right
     auto s_top = SParam(-top->Eval());
-    c.AddEq(&SYS.eq, top->Plus(s_top.e), 3);
+    c.AddEq(&SYS.eq, top->Minus(Expr::From(0.0))->Plus(s_top.e), 3);
     c.AddEq(&SYS.eq, s_top.e->Minus(s_top.e->Abs()), 4);
 
     auto s_right = SParam(-right->Eval());
-    c.AddEq(&SYS.eq, right->Plus(s_right.e),5);
+    c.AddEq(&SYS.eq, right->Minus(Expr::From(0.0))->Plus(s_right.e), 5);
     c.AddEq(&SYS.eq, s_right.e->Minus(s_right.e->Abs()), 6);
     
     
