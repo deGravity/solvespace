@@ -409,7 +409,7 @@ default: dbp("bad constraint type %d", sc->type); return;
                     for(Param &p : params) {
                         //p.h    = SK.param.AddAndAssignId(&p);
                         //SYS.param.Add(&p);
-                        //SK.param.Add(&p); // TODO - Should we add slack params to the sketch?
+                        //SK.param.Add(&p); // TODO - Should we add slack sparams to the sketch?
                     }
                     params.Clear();
                 }

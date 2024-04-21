@@ -36,7 +36,6 @@ typedef uint32_t Slvs_hEntity;
 typedef uint32_t Slvs_hConstraint;
 typedef uint64_t Slvs_hGroup;
 typedef uint32_t Slvs_hExpr;
-typedef uint32_t Slvs_hRel;
 
 /* To obtain the 3d (not projected into a workplane) of a constraint or
  * an entity, specify this instead of the workplane. */
@@ -118,12 +117,6 @@ typedef struct {
     Slvs_hExpr arg2;
 } Slvs_Expr;
 
-typedef struct {
-    Slvs_hRel h;
-    Slvs_hGroup group;
-    Slvs_hExpr expr;
-} Slvs_Rel;
-
 #define SLVS_C_POINTS_COINCIDENT        100000
 #define SLVS_C_PT_PT_DISTANCE           100001
 #define SLVS_C_PT_PLANE_DISTANCE        100002
@@ -162,6 +155,7 @@ typedef struct {
 #define SLVS_C_ARC_LINE_LEN_RATIO       100035
 #define SLVS_C_ARC_ARC_DIFFERENCE       100036
 #define SLVS_C_ARC_LINE_DIFFERENCE      100037
+#define SLVS_C_EQUATIONS                100038
 
 typedef struct {
     Slvs_hConstraint    h;
@@ -178,6 +172,8 @@ typedef struct {
     Slvs_hEntity        entityB;
     Slvs_hEntity        entityC;
     Slvs_hEntity        entityD;
+
+    Slvs_Expr           equations;
 
     int                 other;
     int                 other2;
@@ -208,8 +204,7 @@ typedef struct {
     */
     Slvs_Expr *expr;
     int exprs;
-    Slvs_Rel *rel;
-    int rels;
+
 
     /* If a parameter corresponds to a point (distance, normal, etc.) being
      * dragged, then specify it here. This will cause the solver to favor
@@ -396,14 +391,6 @@ static inline Slvs_Expr Slvs_MakeExpr_LTE(Slvs_hExpr h, Slvs_hExpr arg1, Slvs_hE
     return Slvs_MakeExpr(h, SLVS_X_LTE, 0, 0, arg1, arg2);
 }
 
-static inline Slvs_Rel Slvs_MakeRel(Slvs_hRel h, Slvs_hGroup group, Slvs_hExpr expr) {
-    Slvs_Rel r;
-    memset(&r, 0, sizeof(r));
-    r.h = h;
-    r.group = group;
-    r.expr  = expr;
-    return r;
-}
 
 static inline Slvs_Entity Slvs_MakePoint2d(Slvs_hEntity h, Slvs_hGroup group,
                                            Slvs_hEntity wrkpl,
@@ -559,7 +546,8 @@ static inline Slvs_Constraint Slvs_MakeConstraint(Slvs_hConstraint h,
                                                   Slvs_hEntity ptA,
                                                   Slvs_hEntity ptB,
                                                   Slvs_hEntity entityA,
-                                                  Slvs_hEntity entityB)
+                                                  Slvs_hEntity entityB,
+                                                  Slvs_hExpr   equations)
 {
     Slvs_Constraint r;
     memset(&r, 0, sizeof(r));
@@ -572,6 +560,7 @@ static inline Slvs_Constraint Slvs_MakeConstraint(Slvs_hConstraint h,
     r.ptB = ptB;
     r.entityA = entityA;
     r.entityB = entityB;
+    r.equations = equations;
     return r;
 }
 
