@@ -354,6 +354,7 @@ case SLVS_C_EQUAL_RADIUS:       t = Constraint::Type::EQUAL_RADIUS; break;
 case SLVS_C_PROJ_PT_DISTANCE:   t = Constraint::Type::PROJ_PT_DISTANCE; break;
 case SLVS_C_WHERE_DRAGGED:      t = Constraint::Type::WHERE_DRAGGED; break;
 case SLVS_C_CURVE_CURVE_TANGENT:t = Constraint::Type::CURVE_CURVE_TANGENT; break;
+case SLVS_C_EQUATIONS:          t = Constraint::Type::EQUATIONS; break;
 
 default: dbp("bad constraint type %d", sc->type); return;
         }

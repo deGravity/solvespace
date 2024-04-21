@@ -688,6 +688,7 @@ public:
         ARC_LINE_LEN_RATIO     = 211,
         ARC_ARC_DIFFERENCE     = 212,
         ARC_LINE_DIFFERENCE    = 213,
+        EQUATIONS              = 214,
         COMMENT                = 1000
     };
 
