@@ -198,6 +198,9 @@ class SolverSystem:
     def create_2d_base(self) -> Entity:
         ...
 
+    def add_param(self, v: float) -> Params:
+        ...
+
     def add_point_2d(self, u: float, v: float, wp: Entity) -> Entity:
         ...
 
