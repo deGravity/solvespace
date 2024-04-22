@@ -173,7 +173,7 @@ typedef struct {
     Slvs_hEntity        entityC;
     Slvs_hEntity        entityD;
 
-    Slvs_Expr           equations;
+    Slvs_hExpr           equations;
 
     int                 other;
     int                 other2;

@@ -75,6 +75,7 @@ bool ConstraintBase::IsProjectible() const {
         case Type::CURVE_CURVE_TANGENT:
         case Type::ARC_LINE_TANGENT:
         case Type::EQUAL_RADIUS:
+        case Type::EQUATIONS:
             return false;
     }
     ssassert(false, "Impossible");
@@ -1053,6 +1054,7 @@ void ConstraintBase::GenerateEquations(IdList<Equation,hEquation> *l,
 
         case Type::COMMENT:
             return;
+        case Type::EQUATIONS: return; // Already handled
     }
     ssassert(false, "Unexpected constraint ID");
 }

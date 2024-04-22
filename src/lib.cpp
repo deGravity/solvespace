@@ -9,6 +9,7 @@
 #include <slvs.h>
 #include <iostream>
 #include <vector>
+#include <map>
 
 Sketch SolveSpace::SK = {};
 static System SYS;
@@ -158,15 +159,16 @@ void Test_Ineq()
     std::cout << "\tright = " << right->Eval() << "  s_right = " << s_right.v() << std::endl;
 }
 
-Expr *GetExpression(Slvs_System *ssys, Slvs_Expr *sexpr, ConstraintBase *c) {
+Expr *GetExpression(Slvs_Expr *sexpr, ConstraintBase *c,
+                    std::map<Slvs_hExpr, Slvs_Expr *> &expressions) {
     Expr *arg1;
     Expr *arg2;
 
     // Base Cases, and populate the second argument if binary operation    
     switch(sexpr->type) {
     case SLVS_X_PARAM: {
-        hParam hp;
-        hp.v = sexpr->param;
+        hParam hp{sexpr->param};
+        //hp.v = sexpr->param;
         return Expr::From(hp); // TODO -- do we need to go through the sketch first?
     }
     case SLVS_X_CONST: return Expr::From(sexpr->val);
@@ -175,11 +177,11 @@ Expr *GetExpression(Slvs_System *ssys, Slvs_Expr *sexpr, ConstraintBase *c) {
     case SLVS_X_TIMES:
     case SLVS_X_DIV:
     case SLVS_X_MIN:
-    case SLVS_X_MAX: arg2 = GetExpression(ssys, &ssys->expr[sexpr->arg2], c); break;
+    case SLVS_X_MAX: arg2 = GetExpression(expressions[sexpr->arg2], c, expressions); break;
     default: break;
     }
     // All non-base cases have an arg1
-    arg1 = GetExpression(ssys, &ssys->expr[sexpr->arg1], c);
+    arg1 = GetExpression(expressions[sexpr->arg1], c, expressions);
 
     switch(sexpr->type) {
     case SLVS_X_PLUS: return arg1->Plus(arg2);
@@ -202,58 +204,60 @@ Expr *GetExpression(Slvs_System *ssys, Slvs_Expr *sexpr, ConstraintBase *c) {
     }
 }
 
-void AddEquality(Slvs_System *ssys, Slvs_Expr *sexpr, IdList<Param, hParam> *genParams,
-                 ConstraintBase *c, int idx) {
-    auto lhs = GetExpression(ssys, &ssys->expr[sexpr->arg1], c);
-    auto rhs = GetExpression(ssys, &ssys->expr[sexpr->arg2], c);
-    c->AddEq(&SYS.eq, lhs->Minus(rhs), idx);
+void AddEquality(Slvs_Expr *sexpr, IdList<Param, hParam> *genParams,
+                 ConstraintBase *c, int *idx, std::map<Slvs_hExpr, Slvs_Expr *> &expressions) {
+    auto lhs = GetExpression(expressions[sexpr->arg1], c, expressions);
+    auto rhs = GetExpression(expressions[sexpr->arg2], c, expressions);
+    c->AddEq(&SYS.eq, lhs->Minus(rhs), *idx);
+    *idx += 1;
 }
 
-void AddInequality(Slvs_System *ssys, Slvs_Expr *sexpr, IdList<Param, hParam> *genParams,
-                 ConstraintBase *c, int idx) {
-    auto lhs = GetExpression(ssys, &ssys->expr[sexpr->arg1], c);
-    auto rhs = GetExpression(ssys, &ssys->expr[sexpr->arg2], c);
+void AddInequality(Slvs_Expr *sexpr, IdList<Param, hParam> *genParams,
+                   ConstraintBase *c, int *idx, std::map<Slvs_hExpr, Slvs_Expr *> &expressions) {
+    auto lhs = GetExpression(expressions[sexpr->arg1], c, expressions);
+    auto rhs = GetExpression(expressions[sexpr->arg2], c, expressions);
+    
     Param s  = {};
     s.val    = rhs->Minus(lhs)->Eval(); // Initialize slack var so original ineq holds
-    SK.param.AddAndAssignId(&s);
+    s.h = SK.param.AddAndAssignId(&s);
     SYS.param.Add(&s);
+
     auto slack = Expr::From(s.h);
-    c->AddEq(&SYS.eq, lhs->Minus(rhs)->Plus(slack), idx); // lhs <= rhs
-    c->AddEq(&SYS.eq, slack->Minus(slack->Abs()), idx + 1); // slack >= 0
+    c->AddEq(&SYS.eq, lhs->Minus(rhs)->Plus(slack), *idx); // lhs <= rhs
+    *idx += 1;
+    c->AddEq(&SYS.eq, slack->Minus(slack->Abs()), *idx); // slack >= 0
+    *idx += 1;
 }
 
-void AddRelation(Slvs_System *ssys, Slvs_Rel *srel, IdList<Param, hParam> *genParams, ConstraintBase *c) {
+void AddEquationalConstraint(Slvs_hExpr rootExpr, IdList<Param, hParam> *genParams,
+                 ConstraintBase *c, std::map<Slvs_hExpr, Slvs_Expr *> &expressions) {
     // Get a list of expression pointers (one for each AND-ed equality or inequality
-    Slvs_Expr *expr;
-    std::vector<Slvs_hExpr> equations;
-    std::vector<Slvs_hExpr> to_explore;
-    to_explore.push_back(srel->expr);
+    std::vector<Slvs_Expr*> equations;
+    std::vector<Slvs_Expr*> to_explore;
+
+    to_explore.push_back(expressions[rootExpr]);
     while(!to_explore.empty()) {
-        Slvs_hExpr curr = to_explore.back();
+        Slvs_Expr *curr = to_explore.back();
         to_explore.pop_back();
-        expr = &ssys->expr[curr];
-        switch(expr->type) {
+        switch(curr->type) {
         case SLVS_X_AND: 
-            to_explore.push_back(expr->arg1); 
-            to_explore.push_back(expr->arg2);
+            to_explore.push_back(expressions[curr->arg1]); 
+            to_explore.push_back(expressions[curr->arg2]);
             break;
         case SLVS_X_EQUAL:
         case SLVS_X_LTE: 
             equations.push_back(curr); 
             break;
-        default: dbp("not an equivalence relation %d", expr->type); return;
+        default: dbp("not an equivalence relation %d", curr->type); return;
         }
     }
     int idx = 0;
     for(auto eq : equations) {
-        expr = &ssys->expr[eq];
-        switch(expr->type) {
+        switch(eq->type) {
         case SLVS_X_EQUAL:
-            AddEquality(ssys, expr, genParams, c, idx);
-            idx += 1;
+            AddEquality(eq, genParams, c, &idx, expressions);
             break;
-        case SLVS_X_LTE: AddInequality(ssys, expr, genParams, c, idx); 
-            idx += 2; // Inequalities have a secondary slack variable constraint
+        case SLVS_X_LTE: AddInequality(eq, genParams, c, &idx, expressions); 
             break;
             
         }
@@ -309,6 +313,18 @@ default: dbp("bad entity type %d", se->type); return;
 
         SK.entity.Add(&e);
     }
+    
+    std::map<Slvs_hExpr, Slvs_Expr *> expressions;
+    for(i = 0; i < ssys->exprs; ++i) {
+        Slvs_Expr *expr = &(ssys->expr[i]);
+        expressions[expr->h] = expr;
+        // Inequalities imply an extra slack parameter
+        if(expr->type == SLVS_X_LTE) {
+            Param p = {};
+
+        }
+    }
+    
     IdList<Param, hParam> params = {};
     for(i = 0; i < ssys->constraints; i++) {
         Slvs_Constraint *sc = &(ssys->constraint[i]);
@@ -354,7 +370,11 @@ case SLVS_C_EQUAL_RADIUS:       t = Constraint::Type::EQUAL_RADIUS; break;
 case SLVS_C_PROJ_PT_DISTANCE:   t = Constraint::Type::PROJ_PT_DISTANCE; break;
 case SLVS_C_WHERE_DRAGGED:      t = Constraint::Type::WHERE_DRAGGED; break;
 case SLVS_C_CURVE_CURVE_TANGENT:t = Constraint::Type::CURVE_CURVE_TANGENT; break;
-case SLVS_C_EQUATIONS:          t = Constraint::Type::EQUATIONS; break;
+case SLVS_C_EQUATIONS:          
+    t = Constraint::Type::EQUATIONS; 
+    // Compromise solution; set up the expressions here
+    AddEquationalConstraint( sc->equations, &params, &c, expressions);
+    break;
 
 default: dbp("bad constraint type %d", sc->type); return;
         }
@@ -373,6 +393,7 @@ default: dbp("bad constraint type %d", sc->type); return;
         c.entityD.v     = sc->entityD;
         c.other         = (sc->other) ? true : false;
         c.other2        = (sc->other2) ? true : false;
+        
 
         c.Generate(&params);
         if(!params.IsEmpty()) {
@@ -392,29 +413,6 @@ default: dbp("bad constraint type %d", sc->type); return;
         if(ssys->dragged[i]) {
             hParam hp = { ssys->dragged[i] };
             SYS.dragged.Add(&hp);
-        }
-    }
-
-    // Additional Logic to add in Directly Specified Constraint Equations
-    {
-        
-        
-        for(i = 0; i < ssys->rels; ++i) {
-            ConstraintBase c = {}; // Dummy Constraint Base to access generation methods
-            c.h.v            = SK.constraint.MaximumId() + 30*i + 1; // unique constraint id to avoid collisions
-            Slvs_Rel *srel = &(ssys->rel[i]);
-            if(shg % srel->group == 0) { // HACK - Factorizable Groups
-                AddRelation(ssys, srel, &params, &c);
-                // Copied from constraint loop.
-                if(!params.IsEmpty()) {
-                    for(Param &p : params) {
-                        //p.h    = SK.param.AddAndAssignId(&p);
-                        //SYS.param.Add(&p);
-                        //SK.param.Add(&p); // TODO - Should we add slack sparams to the sketch?
-                    }
-                    params.Clear();
-                }
-            }
         }
     }
 
