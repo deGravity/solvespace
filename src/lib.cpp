@@ -10,6 +10,7 @@
 #include <iostream>
 #include <vector>
 #include <map>
+#include <tuple>
 
 Sketch SolveSpace::SK = {};
 static System SYS;
@@ -160,7 +161,7 @@ void Test_Ineq()
 }
 
 Expr *GetExpression(Slvs_Expr *sexpr, ConstraintBase *c,
-                    std::map<Slvs_hExpr, Slvs_Expr *> &expressions) {
+                    std::map<Slvs_hExpr, Slvs_Expr *> &expressions, bool no_branch) {
     Expr *arg1;
     Expr *arg2;
 
@@ -177,19 +178,29 @@ Expr *GetExpression(Slvs_Expr *sexpr, ConstraintBase *c,
     case SLVS_X_TIMES:
     case SLVS_X_DIV:
     case SLVS_X_MIN:
-    case SLVS_X_MAX: arg2 = GetExpression(expressions[sexpr->arg2], c, expressions); break;
+    case SLVS_X_MAX: arg2 = GetExpression(expressions[sexpr->arg2], c, expressions, no_branch); break;
     default: break;
     }
     // All non-base cases have an arg1
-    arg1 = GetExpression(expressions[sexpr->arg1], c, expressions);
+    arg1 = GetExpression(expressions[sexpr->arg1], c, expressions, no_branch);
 
     switch(sexpr->type) {
     case SLVS_X_PLUS: return arg1->Plus(arg2);
     case SLVS_X_MINUS: return arg1->Minus(arg2);
     case SLVS_X_TIMES: return arg1->Times(arg2);
     case SLVS_X_DIV: return arg1->Div(arg2);
-    case SLVS_X_MIN: return arg1->Min(arg2);
-    case SLVS_X_MAX: return arg1->Max(arg2);
+    case SLVS_X_MIN:
+        if(no_branch) {
+            return arg1->Eval() < arg2->Eval() ? arg1 : arg2;
+        } else {
+            return arg1->Min(arg2);
+        }
+    case SLVS_X_MAX: 
+        if(no_branch) {
+            return arg1->Eval() > arg2->Eval() ? arg1 : arg2;
+        } else {
+            return arg1->Max(arg2);
+        }
     case SLVS_X_NEGATE: return arg1->Negate();
     case SLVS_X_SQRT: return arg1->Sqrt();
     case SLVS_X_SQUARE: return arg1->Square();
@@ -204,33 +215,34 @@ Expr *GetExpression(Slvs_Expr *sexpr, ConstraintBase *c,
     }
 }
 
-void AddEquality(Slvs_Expr *sexpr, IdList<Param, hParam> *genParams,
-                 ConstraintBase *c, int *idx, std::map<Slvs_hExpr, Slvs_Expr *> &expressions) {
-    auto lhs = GetExpression(expressions[sexpr->arg1], c, expressions);
-    auto rhs = GetExpression(expressions[sexpr->arg2], c, expressions);
-    c->AddEq(&SYS.eq, lhs->Minus(rhs), *idx);
-    *idx += 1;
+void AddEquality(Slvs_Expr *sexpr, ConstraintBase *c, int idx, std::map<Slvs_hExpr, Slvs_Expr *> &expressions, bool no_branch) {
+    auto lhs = GetExpression(expressions[sexpr->arg1], c, expressions, no_branch);
+    auto rhs = GetExpression(expressions[sexpr->arg2], c, expressions, no_branch);
+    c->AddEq(&SYS.eq, lhs->Minus(rhs), idx);
 }
 
-void AddInequality(Slvs_Expr *sexpr, IdList<Param, hParam> *genParams,
-                   ConstraintBase *c, int *idx, std::map<Slvs_hExpr, Slvs_Expr *> &expressions) {
-    auto lhs = GetExpression(expressions[sexpr->arg1], c, expressions);
-    auto rhs = GetExpression(expressions[sexpr->arg2], c, expressions);
+void AddInequality(Slvs_Expr *sexpr, ConstraintBase *c, int idx, std::map<Slvs_hExpr, Slvs_Expr *> &expressions, bool no_branch) {
+    auto lhs = GetExpression(expressions[sexpr->arg1], c, expressions, no_branch);
+    auto rhs = GetExpression(expressions[sexpr->arg2], c, expressions, no_branch);
     
-    Param s  = {};
-    s.val    = rhs->Minus(lhs)->Eval(); // Initialize slack var so original ineq holds
-    s.h = SK.param.AddAndAssignId(&s);
-    SYS.param.Add(&s);
+    Expr *slack;
+    if(sexpr->param == 0) {
+        Param s = {};
+        s.val   = rhs->Minus(lhs)->Eval(); // Initialize slack var so original ineq holds
+        s.h     = SK.param.AddAndAssignId(&s);
+        SYS.param.Add(&s);
+        sexpr->param = s.h.v;
+        slack        = Expr::From(s.h);
+    } else {
+        hParam hp{sexpr->param};
+        slack = Expr::From(hp);
+    }
 
-    auto slack = Expr::From(s.h);
-    c->AddEq(&SYS.eq, lhs->Minus(rhs)->Plus(slack), *idx); // lhs <= rhs
-    *idx += 1;
-    c->AddEq(&SYS.eq, slack->Minus(slack->Abs()), *idx); // slack >= 0
-    *idx += 1;
+    c->AddEq(&SYS.eq, lhs->Minus(rhs)->Plus(slack), idx); // lhs <= rhs
+    c->AddEq(&SYS.eq, slack->Minus(slack->Abs()), idx + 1); // slack >= 0
 }
 
-void AddEquationalConstraint(Slvs_hExpr rootExpr, IdList<Param, hParam> *genParams,
-                 ConstraintBase *c, std::map<Slvs_hExpr, Slvs_Expr *> &expressions) {
+void AddEquationalConstraint(Slvs_hExpr rootExpr, ConstraintBase *c, std::map<Slvs_hExpr, Slvs_Expr *> &expressions, bool no_branch) {
     // Get a list of expression pointers (one for each AND-ed equality or inequality
     std::vector<Slvs_Expr*> equations;
     std::vector<Slvs_Expr*> to_explore;
@@ -255,9 +267,11 @@ void AddEquationalConstraint(Slvs_hExpr rootExpr, IdList<Param, hParam> *genPara
     for(auto eq : equations) {
         switch(eq->type) {
         case SLVS_X_EQUAL:
-            AddEquality(eq, genParams, c, &idx, expressions);
+            AddEquality(eq, c, idx, expressions, no_branch);
+            idx += 1;
             break;
-        case SLVS_X_LTE: AddInequality(eq, genParams, c, &idx, expressions); 
+        case SLVS_X_LTE: AddInequality(eq, c, idx, expressions, no_branch);
+            idx += 2;
             break;
             
         }
@@ -318,13 +332,9 @@ default: dbp("bad entity type %d", se->type); return;
     for(i = 0; i < ssys->exprs; ++i) {
         Slvs_Expr *expr = &(ssys->expr[i]);
         expressions[expr->h] = expr;
-        // Inequalities imply an extra slack parameter
-        if(expr->type == SLVS_X_LTE) {
-            Param p = {};
-
-        }
     }
     
+    std::vector<std::tuple<hConstraint, Slvs_hExpr>> equational_constraints;
     IdList<Param, hParam> params = {};
     for(i = 0; i < ssys->constraints; i++) {
         Slvs_Constraint *sc = &(ssys->constraint[i]);
@@ -370,12 +380,7 @@ case SLVS_C_EQUAL_RADIUS:       t = Constraint::Type::EQUAL_RADIUS; break;
 case SLVS_C_PROJ_PT_DISTANCE:   t = Constraint::Type::PROJ_PT_DISTANCE; break;
 case SLVS_C_WHERE_DRAGGED:      t = Constraint::Type::WHERE_DRAGGED; break;
 case SLVS_C_CURVE_CURVE_TANGENT:t = Constraint::Type::CURVE_CURVE_TANGENT; break;
-case SLVS_C_EQUATIONS:          
-    t = Constraint::Type::EQUATIONS; 
-    // Compromise solution; set up the expressions here
-    AddEquationalConstraint( sc->equations, &params, &c, expressions);
-    break;
-
+case SLVS_C_EQUATIONS:t = Constraint::Type::EQUATIONS; break;
 default: dbp("bad constraint type %d", sc->type); return;
         }
 
@@ -406,6 +411,12 @@ default: dbp("bad constraint type %d", sc->type); return;
             c.ModifyToSatisfy();
         }
 
+        // Compromise solution; set up the expressions here
+        if(sc->type == SLVS_C_EQUATIONS && shg % sc->group == 0) {
+            AddEquationalConstraint(sc->equations, &c, expressions, true);
+            equational_constraints.push_back(std::make_tuple(c.h, sc->equations));
+        }
+
         SK.constraint.Add(&c);
     }
 
@@ -423,7 +434,56 @@ default: dbp("bad constraint type %d", sc->type); return;
 
     // Now we're finally ready to solve!
         bool andFindBad = ssys->calculateFaileds ? true : false;
-    SolveResult how = SYS.Solve(&g, NULL, &(ssys->dof), &bad, andFindBad, /*andFindFree=*/false);
+
+    bool done = false;
+        SolveResult how;
+    while(!done) {
+        how =
+            SYS.Solve(&g, NULL, &(ssys->dof), &bad, andFindBad, /*andFindFree=*/false);
+
+        switch(how) {
+            case SolveResult::OKAY:
+            case SolveResult::REDUNDANT_OKAY:
+                break;
+            case SolveResult::DIDNT_CONVERGE:
+            case SolveResult::REDUNDANT_DIDNT_CONVERGE:
+            case SolveResult::TOO_MANY_UNKNOWNS: done = true; break;
+        }
+        if(done) break;
+
+        // Rebuild Equations with Branching
+        SYS.eq.Clear();
+        for(auto p : equational_constraints) {
+            auto c = SK.constraint.FindByIdNoOops(std::get<0>(p));
+            auto eq = std::get<1>(p);
+            AddEquationalConstraint(eq, c, expressions, false);
+        }
+        SYS.WriteEquationsExceptFor(Constraint::NO_CONSTRAINT, &g);
+        // Check Convergence with branching
+        std::vector<double> constraint_values;
+        bool converged = true;
+        for(auto it = SYS.eq.begin(); it != SYS.eq.end(); ++it) {
+            double v = it->e->Eval();
+            constraint_values.push_back(v);
+            if(fabs(v) > System::CONVERGE_TOLERANCE) {
+                converged = false;
+            }
+        }
+        
+        if(!converged) {
+            // Setup non-branched equations using new initializations
+            SYS.eq.Clear();
+            for(auto p : equational_constraints) {
+                auto c  = SK.constraint.FindByIdNoOops(std::get<0>(p));
+                auto eq = std::get<1>(p);
+                AddEquationalConstraint(eq, c, expressions, false);
+            }
+        } else {
+            done = true;
+        }       
+    }
+    // Now we iteratively try to solve if there are branching expressions in the constraints list
+    // for now just check if we have satisfied the equations
 
     switch(how) {
         case SolveResult::OKAY:

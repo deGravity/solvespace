@@ -115,6 +115,7 @@ void ExampleIneq() {
 
     sys.constraint[sys.constraints++] =
         Slvs_MakeConstraint(4, g, SLVS_C_EQUATIONS, 200, 0, 0, 0, 0, 0, 15);
+    
     sys.constraint[sys.constraints++] =
         Slvs_MakeConstraint(5, g, SLVS_C_EQUATIONS, 200, 0, 0, 0, 0, 0, 16);
 
@@ -136,14 +137,14 @@ void ExampleIneq() {
     case SLVS_RESULT_TOO_MANY_UNKNOWNS: printf("TOO_MANY_UNKNOWNS"); break;
     }
 
-    double x1 = sys.param[10].val;
-    double y1 = sys.param[11].val;
-    double x2 = sys.param[12].val;
-    double y2 = sys.param[13].val;
-    double x3 = sys.param[14].val;
-    double y3 = sys.param[15].val;
+    double x1 = sys.param[7].val;
+    double y1 = sys.param[8].val;
+    double x2 = sys.param[9].val;
+    double y2 = sys.param[10].val;
+    double x3 = sys.param[11].val;
+    double y3 = sys.param[12].val;
 
-    printf("\tp1 = (%f , %f)\n", x1, y1);
+    printf("\n\tp1 = (%f , %f)\n", x1, y1);
     printf("\tp2 = (%f , %f)\n", x2, y2);
     printf("\tp3 = (%f , %f)\n", x3, y3);
     //std::cout << "\ttop = " << top->Eval() << "  s_top = " << s_top.v() << std::endl;
