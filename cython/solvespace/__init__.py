@@ -20,6 +20,7 @@ from .slvs import (
     Params,
     Entity,
     SolverSystem,
+    Expression,
 )
 
 __all__ = [
@@ -32,4 +33,5 @@ __all__ = [
     'Params',
     'Entity',
     'SolverSystem',
+    'Expression',
 ]

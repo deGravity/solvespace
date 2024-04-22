@@ -264,6 +264,8 @@ cdef class Params:
 
     cdef vector[Slvs_hParam] param_list
 
+    cpdef list expressions(self)
+
     @staticmethod
     cdef Params create(Slvs_hParam *p, size_t count)
 

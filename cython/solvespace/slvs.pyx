@@ -10,8 +10,132 @@ email: pyslvs@gmail.com
 """
 
 from cpython.object cimport Py_EQ, Py_NE
-from enum import IntEnum, auto
+from enum import IntEnum, auto, Enum
 from collections import Counter
+from numbers import Number
+
+class Expression:
+    class Op(Enum):
+        PLUS = '+'
+        MINUS = '-'
+        TIMES = '*'
+        DIVIDE = '/'
+        EQUAL = '=='
+        LTE = '<='
+        ABS = '||'
+        PARAM = 'p'
+        CONST = 'c'
+        MIN = 'min'
+        MAX = 'max'
+        NORM = 'norm'
+        AND = 'and'
+    PRETTY_REPR = True
+    
+    def __init__(self, *val, **kwargs):
+        self.val = val
+        self.op = Expression.Op.CONST
+        if 'op' in kwargs:
+            self.op = kwargs['op']
+            if isinstance(self.op, str):
+                self.op = Expression.Op(self.op)
+
+    def abs(self):
+        return Expression(self, op=Expression.Op.ABS)
+    
+    def min(self, other):
+        return self.binary_op(other, op=Expression.Op.MIN)
+    
+    def max(self, other):
+        return self.binary_op(other, op=Expression.Op.MAX)
+    
+    def land(self, other):
+        return self.binary_op(other, op=Expression.Op.AND)
+
+    def __invert__(self):
+        return self.abs()
+    
+    def __neg__(self):
+        return Expression(-1) * self
+    
+    def __pos__(self):
+        return self
+    
+    def binary_op(self, other, op, right=False):
+        if isinstance(other, Number) or isinstance(other, str):
+            other = Expression(other)
+        if right:
+            temp = self
+            self = other
+            other = temp
+        return Expression(self, other, op=op)
+
+    def __le__(self, other):
+        return self.binary_op(other, op=Expression.Op.LTE)
+    
+    def __ge__(self, other):
+        if isinstance(other, Number) or isinstance(other, str):
+                other = Expression(other)
+        return other.binary_op(self, op=Expression.Op.LTE)
+
+    def __eq__(self, other):
+        return self.binary_op(other, op=Expression.Op.EQUAL)
+    
+    def __truediv__(self, other):
+        return self.binary_op(other, op=Expression.Op.DIVIDE)
+    
+    def __add__(self, other):
+        return self.binary_op(other, op=Expression.Op.PLUS)
+    
+    def __sub__(self, other):
+        return self.binary_op(other, op=Expression.Op.MINUS)
+    
+    def __mul__(self, other):
+        return self.binary_op(other, op=Expression.Op.TIMES)
+    
+    def __radd__(self, other):
+        return self.binary_op(other, op=Expression.Op.PLUS, right=True)
+    
+    def __rsub__(self, other):
+        return self.binary_op(other, op=Expression.Op.MINUS, right=True)
+    
+    def __rmul__(self, other):
+        return self.binary_op(other, op=Expression.Op.TIMES, right=True)
+    
+    def __rtruediv__(self, other):
+        return self.binary_op(other, op=Expression.Op.DIVIDE, right=True)
+    
+    def __repr__(self) -> str:
+        if Expression.PRETTY_REPR:
+            return str(self)
+        return f'Expression({", ".join(map(repr, self.val))}, op={self.op})'
+    
+    def __str__(self) -> str:
+        if self.op == Expression.Op.PARAM:
+            return f'<{str(self.val[0])}>'
+        elif self.op == Expression.Op.CONST:
+            return str(self.val[0])
+        elif self.op == Expression.Op.ABS:
+            return f'| {str(self.val[0])} |'
+        else:
+            return f'({str(self.val[0])} {self.op.value} {str(self.val[1])})'
+
+    @classmethod
+    def minimum(cls, *exprs: List[Expression]):
+        if len(exprs) == 1:
+            return exprs[0]
+        return exprs[0].min(Expression.minimum(*exprs[1:]))
+
+    @classmethod
+    def maximum(cls, *exprs: List[Expression]):
+        if len(exprs) == 1:
+            return exprs[0]
+        return exprs[0].max(Expression.maximum(*exprs[1:]))
+    
+    @classmethod
+    def conjunction(cls,  *exprs: List[Expression]):
+        if len(exprs) == 1:
+            return exprs[0]
+        return exprs[0].land(Expression.conjunction(*exprs[1:]))
 
 
 def _create_sys(dof_v, g, param_list, entity_list, expr_list, cons_list):
@@ -152,6 +276,14 @@ cdef class Params:
                 m += ", "
         m += "])"
         return m
+
+    cpdef list expressions(self):
+        expr_list = []
+        cdef Slvs_hParam h
+        for h in self.param_list:
+            expr_list.append(Expression(h, op=Expression.Op.PARAM))
+        return expr_list
+
 
 # A virtual work plane that present 3D entity or constraint.
 cdef Entity _E_FREE_IN_3D = Entity.__new__(Entity)

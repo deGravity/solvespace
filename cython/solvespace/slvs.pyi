@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 from typing import Tuple, List, Sequence, Counter, ClassVar
-from enum import IntEnum, auto
+from enum import IntEnum, auto, Enum
 
 def quaternion_u(
     qw: float,
@@ -35,6 +35,94 @@ def make_quaternion(
     vy: float,
     vz: float
 ) -> Tuple[float, float, float, float]:
+    ...
+
+class Expression:
+    class Op(Enum):
+        PLUS = '+'
+        MINUS = '-'
+        TIMES = '*'
+        DIVIDE = '/'
+        EQUAL = '=='
+        LTE = '<='
+        ABS = '||'
+        PARAM = 'p'
+        CONST = 'c'
+        MIN = 'min'
+        MAX = 'max'
+        NORM = 'norm'
+        AND = 'and'
+    
+    def __init__(self, *val, **kwargs):
+        ...
+
+    def abs(self):
+        ...
+    
+    def min(self, other):
+        ...
+    
+    def max(self, other):
+        ...
+    
+    def conjunction(self, other):
+        ...
+
+    def __invert__(self):
+        ...
+    
+    def __neg__(self):
+        ...
+    
+    def __pos__(self):
+        ...
+    
+    def binary_op(self, other, op, right=False):
+        ...
+
+    def __le__(self, other):
+        ...
+    
+    def __ge__(self, other):
+        ...
+
+    def __eq__(self, other):
+        ...
+    
+    def __truediv__(self, other):
+        ...
+    
+    def __add__(self, other):
+        ...
+    
+    def __sub__(self, other):
+        ...
+    
+    def __mul__(self, other):
+        ...
+    
+    def __radd__(self, other):
+        ...
+    
+    def __rsub__(self, other):
+        ...
+    
+    def __rmul__(self, other):
+        ...
+    
+    def __rtruediv__(self, other):
+        ...
+    
+    def __repr__(self) -> str:
+        ...
+    
+    def __str__(self) -> str:
+        ...
+
+def minimum(*exprs: List[Expression]):
+    ...
+
+def maximum(*exprs: List[Expression]):
     ...
 
 class Constraint(IntEnum):
