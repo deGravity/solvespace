@@ -130,7 +130,7 @@ cdef extern from "slvs.h" nogil:
         Slvs_hEntity entityB
         Slvs_hEntity entityC
         Slvs_hEntity entityD
-        Slvs_hExpr SLVS_C_EQUATIONS
+        Slvs_hExpr equations
         int other
         int other2
 
