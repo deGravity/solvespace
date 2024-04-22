@@ -19,6 +19,7 @@ cdef extern from "slvs.h" nogil:
     ctypedef uint32_t Slvs_hEntity
     ctypedef uint32_t Slvs_hConstraint
     ctypedef uint64_t Slvs_hGroup
+    ctypedef uint32_t Slvs_hExpr
 
     # Virtual work plane entity
     Slvs_hEntity SLVS_FREE_IN_3D
@@ -49,6 +50,14 @@ cdef extern from "slvs.h" nogil:
         Slvs_hEntity normal
         Slvs_hEntity distance
         Slvs_hParam param[4]
+    
+    ctypedef struct Slvs_Expr:
+        Slvs_hExpr h
+        int type
+        Slvs_hParam param
+        double val
+        Slvs_hExpr arg1
+        Slvs_hExpr arg2
 
     int SLVS_C_POINTS_COINCIDENT
     int SLVS_C_PT_PT_DISTANCE
@@ -84,6 +93,30 @@ cdef extern from "slvs.h" nogil:
     int SLVS_C_WHERE_DRAGGED
     int SLVS_C_CURVE_CURVE_TANGENT
     int SLVS_C_LENGTH_DIFFERENCE
+    int SLVS_C_EQUATIONS
+
+
+    int SLVS_X_PARAM
+    int SLVS_X_CONST
+    int SLVS_X_PLUS
+    int SLVS_X_MINUS
+    int SLVS_X_TIMES
+    int SLVS_X_DIV
+    int SLVS_X_MIN
+    int SLVS_X_MAX
+    int SLVS_X_NEGATE
+    int SLVS_X_SQRT
+    int SLVS_X_SQUARE
+    int SLVS_X_SIN
+    int SLVS_X_COS
+    int SLVS_X_ASIN
+    int SLVS_X_ACOS
+    int SLVS_X_ABS
+    int SLVS_X_SGN
+    int SLVS_X_NORM
+    int SLVS_X_AND
+    int SLVS_X_EQUAL
+    int SLVS_X_LTE
 
     ctypedef struct Slvs_Constraint:
         Slvs_hConstraint h
@@ -97,6 +130,7 @@ cdef extern from "slvs.h" nogil:
         Slvs_hEntity entityB
         Slvs_hEntity entityC
         Slvs_hEntity entityD
+        Slvs_hExpr SLVS_C_EQUATIONS
         int other
         int other2
 
@@ -107,6 +141,8 @@ cdef extern from "slvs.h" nogil:
         int entities
         Slvs_Constraint *constraint
         int constraints
+        Slvs_Expr *expr
+        int exprs
         Slvs_hParam dragged[4]
         int calculateFaileds
         Slvs_hConstraint *failed
@@ -133,6 +169,30 @@ cdef extern from "slvs.h" nogil:
         double *qw, double *qx, double *qy, double *qz
     )
     Slvs_Param Slvs_MakeParam(Slvs_hParam h, Slvs_hGroup group, double val)
+
+    Slvs_Expr Slvs_MakeExpr(Slvs_hExpr h, int type, Slvs_hParam param, double val, Slvs_hExpr arg1, Slvs_hExpr arg2)
+    Slvs_MakeExpr_Param(Slvs_hExpr h, Slvs_hParam p)
+    Slvs_MakeExpr_Const(Slvs_hExpr h, double val)
+    Slvs_MakeExpr_Plus(Slvs_hExpr h, Slvs_hExpr arg1, Slvs_hExpr arg2)
+    Slvs_MakeExpr_Minus(Slvs_hExpr h, Slvs_hExpr arg1, Slvs_hExpr arg2) 
+    Slvs_MakeExpr_Times(Slvs_hExpr h, Slvs_hExpr arg1, Slvs_hExpr arg2) 
+    Slvs_MakeExpr_Div(Slvs_hExpr h, Slvs_hExpr arg1, Slvs_hExpr arg2) 
+    Slvs_MakeExpr_Min(Slvs_hExpr h, Slvs_hExpr arg1, Slvs_hExpr arg2) 
+    Slvs_MakeExpr_Max(Slvs_hExpr h, Slvs_hExpr arg1, Slvs_hExpr arg2) 
+    Slvs_MakeExpr_Negate(Slvs_hExpr h, Slvs_hExpr arg1)
+    Slvs_MakeExpr_Sqrt(Slvs_hExpr h, Slvs_hExpr arg1)
+    Slvs_MakeExpr_Square(Slvs_hExpr h, Slvs_hExpr arg1)
+    Slvs_MakeExpr_Sin(Slvs_hExpr h, Slvs_hExpr arg1) 
+    Slvs_MakeExpr_Cos(Slvs_hExpr h, Slvs_hExpr arg1)
+    Slvs_MakeExpr_ASin(Slvs_hExpr h, Slvs_hExpr arg1)
+    Slvs_MakeExpr_ACos(Slvs_hExpr h, Slvs_hExpr arg1)
+    Slvs_MakeExpr_Abs(Slvs_hExpr h, Slvs_hExpr arg1) 
+    Slvs_MakeExpr_Sgn(Slvs_hExpr h, Slvs_hExpr arg1)
+    Slvs_MakeExpr_Norm(Slvs_hExpr h, Slvs_hExpr arg1)
+    Slvs_MakeExpr_And(Slvs_hExpr h, Slvs_hExpr arg1, Slvs_hExpr arg2)
+    Slvs_MakeExpr_Equal(Slvs_hExpr h, Slvs_hExpr arg1, Slvs_hExpr arg2) 
+    Slvs_MakeExpr_LTE(Slvs_hExpr h, Slvs_hExpr arg1, Slvs_hExpr arg2) 
+    
     Slvs_Entity Slvs_MakePoint2d(
         Slvs_hEntity h, Slvs_hGroup group,
         Slvs_hEntity wrkpl,
@@ -241,6 +301,7 @@ cdef class SolverSystem:
     cdef Slvs_hGroup g
     cdef vector[Slvs_Param] param_list
     cdef vector[Slvs_Entity] entity_list
+    cdef vector[Slvs_Expr] expr_list
     cdef vector[Slvs_Constraint] cons_list
     cdef vector[Slvs_hConstraint] failed_list
 
@@ -257,10 +318,12 @@ cdef class SolverSystem:
 
     cpdef size_t param_len(self)
     cpdef size_t entity_len(self)
+    cpdef size_t expr_len(self)
     cpdef size_t cons_len(self)
 
     cpdef Entity create_2d_base(self)
     cdef Slvs_hParam new_param(self, double val) nogil
+    cpdef Params add_param(self, double val)
     cdef Slvs_hEntity eh(self) nogil
 
     cpdef Entity add_point_2d(self, double u, double v, Entity wp)
@@ -286,7 +349,8 @@ cdef class SolverSystem:
         Entity e3 = *,
         Entity e4 = *,
         int other = *,
-        int other2 = *
+        int other2 = *,
+        int equations = *
     )
 
     cpdef int coincident(self, Entity e1, Entity e2, Entity wp = *)

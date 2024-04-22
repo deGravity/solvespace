@@ -14,12 +14,13 @@ from enum import IntEnum, auto
 from collections import Counter
 
 
-def _create_sys(dof_v, g, param_list, entity_list, cons_list):
+def _create_sys(dof_v, g, param_list, entity_list, expr_list, cons_list):
     cdef SolverSystem s = SolverSystem.__new__(SolverSystem)
     s.dof_v = dof_v
     s.g = g
     s.param_list = param_list
     s.entity_list = entity_list
+    s.expr_list = expr_list
     s.cons_list = cons_list
     return s
 
@@ -103,6 +104,7 @@ class Constraint(IntEnum):
     WHERE_DRAGGED = auto()
     CURVE_CURVE_TANGENT = auto()
     LENGTH_DIFFERENCE = auto()
+    EQUATIONS = auto()
 
 
 class ResultFlag(IntEnum):
@@ -215,6 +217,7 @@ _NAME_OF_CONSTRAINTS = {
     SLVS_C_WHERE_DRAGGED: "where dragged",
     SLVS_C_CURVE_CURVE_TANGENT: "curve curve tangent",
     SLVS_C_LENGTH_DIFFERENCE: "length difference",
+    SLVS_C_EQUATIONS: "equation set"
 }
 
 
@@ -354,7 +357,7 @@ cdef class SolverSystem:
         self.g = 2
 
     def __reduce__(self):
-        return (_create_sys, (self.dof_v, self.g, self.param_list, self.entity_list, self.cons_list))
+        return (_create_sys, (self.dof_v, self.g, self.param_list, self.entity_list, self.expr_list, self.cons_list))
 
     def entity(self, int i) -> Entity:
         """Generate entity handle, it can only be used with this system.
@@ -378,6 +381,7 @@ cdef class SolverSystem:
         self.g = 2
         self.param_list.clear()
         self.entity_list.clear()
+        self.expr_list.clear()
         self.cons_list.clear()
         self.failed_list.clear()
 
@@ -446,6 +450,9 @@ cdef class SolverSystem:
         # Constraints
         sys.constraint = self.cons_list.data()
         sys.constraints = self.cons_list.size()
+        # Expressions
+        sys.expr = self.expr_list.data()
+        sys.exprs = self.expr_list.size()
         # Faileds
         self.failed_list = vector[Slvs_hConstraint](self.cons_list.size(), 0)
         sys.failed = self.failed_list.data()
@@ -464,11 +471,15 @@ cdef class SolverSystem:
         return self.param_list.size()
 
     cpdef size_t entity_len(self):
-        """The length of parameter list."""
+        """The length of entity list."""
         return self.entity_list.size()
+    
+    cpdef size_t expr_len(self):
+        """The length of the expression list."""
+        return self.expr_list.size()
 
     cpdef size_t cons_len(self):
-        """The length of parameter list."""
+        """The length of constraint list."""
         return self.cons_list.size()
 
     cpdef Entity create_2d_base(self):
@@ -485,6 +496,11 @@ cdef class SolverSystem:
         cdef Slvs_hParam h = <Slvs_hParam>self.param_list.size() + 1
         self.param_list.push_back(Slvs_MakeParam(h, self.g, val))
         return h
+    
+    cpdef Params add_param(self, double v):
+        """Add a parameter."""
+        cdef Slvs_hParam h = self.new_param(v)
+        return Params.create(&h, 1)
 
     cdef inline Slvs_hEntity eh(self) nogil:
         """Return new entity handle."""
@@ -669,7 +685,8 @@ cdef class SolverSystem:
         Entity e3 = _E_NONE,
         Entity e4 = _E_NONE,
         int other = 0,
-        int other2 = 0
+        int other2 = 0,
+        int equations = 0
     ):
         """Add a constraint by type code `c_type`.
         This is an origin function mapping to different constraint methods.
@@ -704,6 +721,7 @@ cdef class SolverSystem:
         c.entityD = e4.h
         c.other = other
         c.other2 = other2
+        c.equations = equations
         self.cons_list.push_back(c)
         return self.cons_list.size()
 

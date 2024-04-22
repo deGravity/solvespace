@@ -73,6 +73,7 @@ class Constraint(IntEnum):
     WHERE_DRAGGED = auto()
     CURVE_CURVE_TANGENT = auto()
     LENGTH_DIFFERENCE = auto()
+    EQUATIONS = auto()
 
 
 class ResultFlag(IntEnum):
@@ -81,6 +82,7 @@ class ResultFlag(IntEnum):
     INCONSISTENT = auto()
     DIDNT_CONVERGE = auto()
     TOO_MANY_UNKNOWNS = auto()
+    REDUNDANT_OKAY = auto()
 
 class Params:
     pass
@@ -187,6 +189,9 @@ class SolverSystem:
     def entity_len(self) -> int:
         ...
 
+    def expr_len(self) -> int:
+        ...
+
     def cons_len(self) -> int:
         ...
 
@@ -238,7 +243,8 @@ class SolverSystem:
         e3: Entity = Entity.NONE,
         e4: Entity = Entity.NONE,
         other: int = 0,
-        other2: int = 0
+        other2: int = 0,
+        equations: int = 0
     ) -> int:
         ...
 
