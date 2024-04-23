@@ -861,6 +861,83 @@ cdef class SolverSystem:
     # Constraint methods.
     #####
 
+    cdef Slvs_hExpr add_expression(self, Expression exp):
+        cdef Slvs_Expr e
+        if exp.op == Expression.Op.PLUS:
+            arity = 2
+            op = SLVS_X_PLUS
+        elif exp.op == Expression.Op.MINUS:
+            arity = 2
+            op = SLVS_X_MINUS
+        elif exp.op == Expression.Op.TIMES:
+            arity = 2
+            op = SLVS_X_TIMES
+        elif exp.op == Expression.Op.DIVIDE:
+            arity = 2
+            op = SLVS_X_DIV
+        elif exp.op == Expression.Op.EQUAL:
+            arity = 2
+            op = SLVS_X_EQUAL
+        elif exp.op == Expression.Op.LTE:
+            arity = 2
+            op = SLVS_X_LTE
+        elif exp.op == Expression.Op.ABS:
+            arity = 1
+            op = SLVS_X_ABS
+        elif exp.op == Expression.Op.PARAM:
+            arity = 0
+            op = SLVS_X_PARAM
+            e.h = <Slvs_hExpr>self.expr_list.size() + 1
+            e.type = op
+            e.param = <Slvs_hParam>exp.val[0]
+            e.val = 0.0
+            e.arg1 = <Slvs_hExpr>0
+            e.arg2 = <Slvs_hExpr>1
+            self.expr_list.push_back(e)
+            return e.h
+        elif exp.op == Expression.Op.CONST:
+            arity = 0
+            op = SLVS_X_CONST
+            e.h = <Slvs_hExpr>self.expr_list.size() + 1
+            e.type = op
+            e.param = <Slvs_hParam>0
+            e.val = exp.val[0]
+            e.arg1 = <Slvs_hExpr>0
+            e.arg2 = <Slvs_hExpr>0
+            self.expr_list.push_back(e)
+            return e.h
+        elif exp.op == Expression.Op.MIN:
+            arity = 2
+            op = SLVS_X_MIN
+        elif exp.op == Expression.Op.MAX:
+            arity = 2
+            op = SLVS_X_MAX
+        elif exp.op == Expression.Op.NORM:
+            arity = 1
+            op = SLVS_X_NORM
+        elif exp.op == Expression.Op.AND:
+            arity = 2
+            op = SLVS_X_AND
+        
+        e.arg1 = self.add_expression(exp.val[0])
+        e.arg2 = <Slvs_hExpr>0;
+        if arity > 0:
+            e.arg2 = self.add_expression(exp.val[1])
+
+        e.h = <Slvs_hExpr>self.expr_list.size() + 1
+        e.type = op
+        e.param = <Slvs_hParam>0
+        e.val = 0.0
+        self.expr_list.push_back(e)
+        return e.h
+        
+
+    cpdef int equational_constraint(self, Expression equations):
+        """Equationally defined constraints"""
+        eq = self.add_expression(equations)
+        return self.add_constraint(SLVS_C_EQUATIONS, _E_FREE_IN_3D, 0., _E_NONE, _E_NONE, _E_NONE, _E_NONE, equations = eq)
+
+
     cpdef int coincident(self, Entity e1, Entity e2, Entity wp = _E_FREE_IN_3D):
         """Coincident two entities.
 
