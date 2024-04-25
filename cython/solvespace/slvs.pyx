@@ -14,6 +14,7 @@ from enum import IntEnum, auto, Enum
 from collections import Counter
 from numbers import Number
 
+
 class Expression:
     class Op(Enum):
         PLUS = '+'
@@ -118,6 +119,55 @@ class Expression:
             return f'| {str(self.val[0])} |'
         else:
             return f'({str(self.val[0])} {self.op.value} {str(self.val[1])})'
+
+    def add_to_solver(self, solver) -> int:
+        if self.op == self.Op.PLUS:
+            arity = 2
+            op = SLVS_X_PLUS
+        elif self.op == self.Op.MINUS:
+            arity = 2
+            op = SLVS_X_MINUS
+        elif self.op == self.Op.TIMES:
+            arity = 2
+            op = SLVS_X_TIMES
+        elif self.op == self.Op.DIVIDE:
+            arity = 2
+            op = SLVS_X_DIV
+        elif self.op == self.Op.EQUAL:
+            arity = 2
+            op = SLVS_X_EQUAL
+        elif self.op == self.Op.LTE:
+            arity = 2
+            op = SLVS_X_LTE
+        elif self.op == self.Op.ABS:
+            arity = 1
+            op = SLVS_X_ABS
+        elif self.op == self.Op.PARAM:
+            arity = 0
+            op = SLVS_X_PARAM
+            return solver.add_expression_node(op, self.val[0], 0, 0, 0)
+        elif self.op == self.Op.CONST:
+            arity = 0
+            op = SLVS_X_CONST
+            return solver.add_expression_node(op, 0, self.val[0], 0, 0)
+        elif self.op == self.Op.MIN:
+            arity = 2
+            op = SLVS_X_MIN
+        elif self.op == self.Op.MAX:
+            arity = 2
+            op = SLVS_X_MAX
+        elif self.op == self.Op.NORM:
+            arity = 1
+            op = SLVS_X_NORM
+        elif self.op == self.Op.AND:
+            arity = 2
+            op = SLVS_X_AND
+        
+        arg1 = self.val[0].add_to_solver(solver)
+        arg2 = 0
+        if arity > 0:
+            arg2 = self.val[1].add_to_solver(solver)
+        return solver.add_expression_node(op, 0, 0, arg1, arg2)
 
     @classmethod
     def minimum(cls, *exprs: List[Expression]):
@@ -228,6 +278,10 @@ class Constraint(IntEnum):
     WHERE_DRAGGED = auto()
     CURVE_CURVE_TANGENT = auto()
     LENGTH_DIFFERENCE = auto()
+    ARC_ARC_LEN_RATIO = auto()
+    ARC_LINE_LEN_RATIO = auto()
+    ARC_ARC_DIFFERENCE = auto()
+    ARC_LINE_DIFFERENCE = auto()
     EQUATIONS = auto()
 
 
@@ -856,87 +910,22 @@ cdef class SolverSystem:
         c.equations = equations
         self.cons_list.push_back(c)
         return self.cons_list.size()
+    
+
+    cpdef int add_expression_node(self, int op, Slvs_hParam param, double val, Slvs_hExpr arg1, Slvs_hExpr arg2):
+        cdef Slvs_Expr e
+        e.h = <Slvs_hExpr>self.expr_list.size() + 1
+        e.type = op
+        e.param = param
+        e.val = val
+        e.arg1 = arg1
+        e.arg2 = arg2
+        self.expr_list.push_back(e)
+        return self.expr_list.size()
 
     #####
     # Constraint methods.
     #####
-
-    cdef Slvs_hExpr add_expression(self, Expression exp):
-        cdef Slvs_Expr e
-        if exp.op == Expression.Op.PLUS:
-            arity = 2
-            op = SLVS_X_PLUS
-        elif exp.op == Expression.Op.MINUS:
-            arity = 2
-            op = SLVS_X_MINUS
-        elif exp.op == Expression.Op.TIMES:
-            arity = 2
-            op = SLVS_X_TIMES
-        elif exp.op == Expression.Op.DIVIDE:
-            arity = 2
-            op = SLVS_X_DIV
-        elif exp.op == Expression.Op.EQUAL:
-            arity = 2
-            op = SLVS_X_EQUAL
-        elif exp.op == Expression.Op.LTE:
-            arity = 2
-            op = SLVS_X_LTE
-        elif exp.op == Expression.Op.ABS:
-            arity = 1
-            op = SLVS_X_ABS
-        elif exp.op == Expression.Op.PARAM:
-            arity = 0
-            op = SLVS_X_PARAM
-            e.h = <Slvs_hExpr>self.expr_list.size() + 1
-            e.type = op
-            e.param = <Slvs_hParam>exp.val[0]
-            e.val = 0.0
-            e.arg1 = <Slvs_hExpr>0
-            e.arg2 = <Slvs_hExpr>1
-            self.expr_list.push_back(e)
-            return e.h
-        elif exp.op == Expression.Op.CONST:
-            arity = 0
-            op = SLVS_X_CONST
-            e.h = <Slvs_hExpr>self.expr_list.size() + 1
-            e.type = op
-            e.param = <Slvs_hParam>0
-            e.val = exp.val[0]
-            e.arg1 = <Slvs_hExpr>0
-            e.arg2 = <Slvs_hExpr>0
-            self.expr_list.push_back(e)
-            return e.h
-        elif exp.op == Expression.Op.MIN:
-            arity = 2
-            op = SLVS_X_MIN
-        elif exp.op == Expression.Op.MAX:
-            arity = 2
-            op = SLVS_X_MAX
-        elif exp.op == Expression.Op.NORM:
-            arity = 1
-            op = SLVS_X_NORM
-        elif exp.op == Expression.Op.AND:
-            arity = 2
-            op = SLVS_X_AND
-        
-        e.arg1 = self.add_expression(exp.val[0])
-        e.arg2 = <Slvs_hExpr>0;
-        if arity > 0:
-            e.arg2 = self.add_expression(exp.val[1])
-
-        e.h = <Slvs_hExpr>self.expr_list.size() + 1
-        e.type = op
-        e.param = <Slvs_hParam>0
-        e.val = 0.0
-        self.expr_list.push_back(e)
-        return e.h
-        
-
-    cpdef int equational_constraint(self, Expression equations):
-        """Equationally defined constraints"""
-        eq = self.add_expression(equations)
-        return self.add_constraint(SLVS_C_EQUATIONS, _E_FREE_IN_3D, 0., _E_NONE, _E_NONE, _E_NONE, _E_NONE, equations = eq)
-
 
     cpdef int coincident(self, Entity e1, Entity e2, Entity wp = _E_FREE_IN_3D):
         """Coincident two entities.
@@ -1234,3 +1223,169 @@ cdef class SolverSystem:
             return self.add_constraint(SLVS_C_LENGTH_DIFFERENCE, wp, value, _E_NONE, _E_NONE, e1, e2)
         else:
             raise TypeError(f"unsupported entities: {e1}, {e2}, {wp}")
+
+    cpdef int describe_system(self):
+        
+        cdef Slvs_Expr e
+        print(f"Expressions:")
+        print(f"h\ttype\tparam\tval\targ1\targ2")
+        print("--------------------------------------------")
+        for e in self.expr_list:
+            type_str = "unknown"
+            if e.type == SLVS_X_PARAM:
+                type_str = "PARAM"
+            elif e.type == SLVS_X_CONST:
+                type_str = "CONST"
+            elif e.type == SLVS_X_PLUS:
+                type_str = "PLUS"
+            elif e.type == SLVS_X_MINUS:
+                type_str = "MINUS"
+            elif e.type == SLVS_X_TIMES:
+                type_str = "TIMES"
+            elif e.type == SLVS_X_DIV:
+                type_str = "DIV"
+            elif e.type == SLVS_X_MIN:
+                type_str = "MIN"
+            elif e.type == SLVS_X_MAX:
+                type_str = "MAX"
+            elif e.type == SLVS_X_NEGATE:
+                type_str = "NEGATE"
+            elif e.type == SLVS_X_SQRT:
+                type_str = "SQRT"
+            elif e.type == SLVS_X_SQUARE:
+                type_str = "SQUARE"
+            elif e.type == SLVS_X_SIN:
+                type_str = "SIN"
+            elif e.type == SLVS_X_COS:
+                type_str = "COS"
+            elif e.type == SLVS_X_ASIN:
+                type_str = "ASIN"
+            elif e.type == SLVS_X_ACOS:
+                type_str = "ACOS"
+            elif e.type == SLVS_X_ABS:
+                type_str = "ABS"
+            elif e.type == SLVS_X_SGN:
+                type_str = "SGN"
+            elif e.type == SLVS_X_NORM:
+                type_str = "NORM"
+            elif e.type == SLVS_X_AND:
+                type_str = "AND"
+            elif e.type == SLVS_X_EQUAL:
+                type_str = "EQUAL"
+            elif e.type == SLVS_X_LTE:
+                type_str = "LTE"
+            print(f"{e.h}\t{type_str}\t{e.param}\t{e.val}\t{e.arg1}\t{e.arg2}")
+#            print(f"Expression:\n\th = {e.h}\n\ttype = {type_str}\n\tparam = {e.param}\n\tval = {e.val}\n\targ1 = {e.arg1}\n\targ2 = {e.arg2}\n\n")
+        cdef Slvs_Param p
+        print("Params:")
+        print(f"h\tgroup\tval")
+        print("------------------------------")
+        for p in self.param_list:
+            print(f"{p.h}\t{p.group}\t\t{p.val}")
+        
+        cdef Slvs_Entity i
+        print("Entities:")
+        print(f"h\tgroup\ttype\twrkpl\tpoint\tnormal\tdistance\tparam")
+        print("-------------------------------------------------------------------------")
+        for i in self.entity_list:
+            if i.type == SLVS_E_POINT_IN_3D:
+                type_str = "POINT_IN_3D"
+            elif i.type == SLVS_E_POINT_IN_2D:
+                type_str = "POINT_IN_2D"
+            elif i.type == SLVS_E_NORMAL_IN_2D:
+                type_str = "NORMAL_IN_2D"
+            elif i.type == SLVS_E_NORMAL_IN_3D:
+                type_str = "NORMAL_IN_3D"
+            elif i.type == SLVS_E_DISTANCE:
+                type_str = "DISTANCE"
+            elif i.type == SLVS_E_WORKPLANE:
+                type_str = "WORKPLANE"
+            elif i.type == SLVS_E_LINE_SEGMENT:
+                type_str = "SEGMENT"
+            elif i.type == SLVS_E_CUBIC:
+                type_str = "CUBIC"
+            elif i.type == SLVS_E_CIRCLE:
+                type_str = "CIRCLE"
+            elif i.type == SLVS_E_ARC_OF_CIRCLE:
+                type_str = "CIRCLE"
+
+            print(f"{i.h}\t{i.group}\t\t{type_str}\t{i.wrkpl}\t{i.point[0]},{i.point[1]},{i.point[2]},{i.point[3]}\t{i.normal}\t{i.distance}\t{i.param[0]},{i.param[1]},{i.param[2]},{i.param[3]}")
+
+
+        cdef Slvs_Constraint c
+        print("Constraints:")
+        print("h\tgroup\ttype\twrkpl\tvalA\tptA\tptB\tentityA\tentityB\tentityC\tentityD\tequations\tother\tother2")
+        for c in self.cons_list:
+            if c.type == SLVS_C_POINTS_COINCIDENT:
+                type_str = "POINTS_COINCIDENT"
+            elif c.type == SLVS_C_PT_PT_DISTANCE:
+                type_str = "PT_PT_DISTANCE"
+            elif c.type == SLVS_C_PT_PLANE_DISTANCE:
+                type_str = "PT_PLANE_DISTANCE"
+            elif c.type == SLVS_C_PT_LINE_DISTANCE:
+                type_str = "PT_LINE_DISTANCE"
+            elif c.type == SLVS_C_PT_FACE_DISTANCE:
+                type_str = "PT_FACE_DISTANCE"
+            elif c.type == SLVS_C_PT_IN_PLANE:
+                type_str = "PT_IN_PLANE"
+            elif c.type == SLVS_C_PT_ON_LINE:
+                type_str = "PT_ON_LINE"
+            elif c.type == SLVS_C_PT_ON_FACE:
+                type_str = "PT_ON_FACE"
+            elif c.type == SLVS_C_EQUAL_LENGTH_LINES:
+                type_str = "EQUAL_LENGTH_LINESLINES"
+            elif c.type == SLVS_C_LENGTH_RATIO:
+                type_str = "LENGTH_RATIO"
+            elif c.type == SLVS_C_EQ_LEN_PT_LINE_D:
+                type_str = "EQ_LEN_PT_LINE_D"
+            elif c.type == SLVS_C_EQ_PT_LN_DISTANCES:
+                type_str = "EQ_PT_LN_DISTANCES"
+            elif c.type == SLVS_C_EQUAL_ANGLE:
+                type_str = "EQUAL_ANGLE"
+            elif c.type == SLVS_C_EQUAL_LINE_ARC_LEN:
+                type_str = "EQUAL_LINE_ARC_LEN"
+            elif c.type == SLVS_C_SYMMETRIC:
+                type_str = "SYMMETRIC"
+            elif c.type == SLVS_C_SYMMETRIC_HORIZ:
+                type_str = "SYMMETRIC_HORIZ"
+            elif c.type == SLVS_C_SYMMETRIC_VERT:
+                type_str = "SYMMETRIC_VERT"
+            elif c.type == SLVS_C_SYMMETRIC_LINE:
+                type_str = "SYMMETRIC_LINE"
+            elif c.type == SLVS_C_AT_MIDPOINT:
+                type_str = "AT_MIDPOINT"
+            elif c.type == SLVS_C_HORIZONTAL:
+                type_str = "HORIZONTAL"
+            elif c.type == SLVS_C_VERTICAL:
+                type_str = "VERTICAL"
+            elif c.type == SLVS_C_DIAMETER:
+                type_str = "DIAMETER"
+            elif c.type == SLVS_C_PT_ON_CIRCLE:
+                type_str = "PT_ON_CIRCLE"
+            elif c.type == SLVS_C_SAME_ORIENTATION:
+                type_str = "SAME_ORIENTATION"
+            elif c.type == SLVS_C_ANGLE:
+                type_str = "ANGLE"
+            elif c.type == SLVS_C_PARALLEL:
+                type_str = "PARALLEL"
+            elif c.type == SLVS_C_PERPENDICULAR:
+                type_str = "PERPENDICULAR"
+            elif c.type == SLVS_C_ARC_LINE_TANGENT:
+                type_str = "ARC_LINE_TANGENT"
+            elif c.type == SLVS_C_CUBIC_LINE_TANGENT:
+                type_str = "CUBIC_LINE_TANGENT"
+            elif c.type == SLVS_C_EQUAL_RADIUS:
+                type_str = "EQUAL_RADIUS"
+            elif c.type == SLVS_C_PROJ_PT_DISTANCE:
+                type_str = "PROJ_PT_DISTANCE"
+            elif c.type == SLVS_C_WHERE_DRAGGED:
+                type_str = "WHERE_DRAGGED"
+            elif c.type == SLVS_C_CURVE_CURVE_TANGENT:
+                type_str = "CURVE_CURVE_TANGENT"
+            elif c.type == SLVS_C_LENGTH_DIFFERENCE:
+                type_str = "LENGTH_DIFFERENCE"
+            elif c.type == SLVS_C_EQUATIONS:
+                type_str = "EQUATIONS"
+            print(f"{c.h}\t{c.group}\t{type_str}\t{c.wrkpl}\t{c.valA}\t{c.ptA}\t{c.ptB}\t{c.entityA}\t{c.entityB}\t{c.entityC}\t{c.entityD}\t{c.equations}\t{c.other}\t{c.other2}")
+
+        return 0

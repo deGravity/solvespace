@@ -260,11 +260,6 @@ cpdef tuple quaternion_v(double qw, double qx, double qy, double qz)
 cpdef tuple quaternion_n(double qw, double qx, double qy, double qz)
 cpdef tuple make_quaternion(double ux, double uy, double uz, double vx, double vy, double vz)
 
-cpdef class Expression:
-    cpdef int op
-    cpdef double value
-    cpdef *Expression arg1
-    cpdef *Expression arg2
 
 cdef class Params:
 
@@ -361,8 +356,9 @@ cdef class SolverSystem:
         int equations = *
     )
 
-    cdef Slvs_hExpr add_expression(self, Expression exp)
-    cpdef int equational_constraint(self, Expression equations)
+    cpdef int describe_system(self)
+
+    cpdef int add_expression_node(self, int op, Slvs_hParam param, double val, Slvs_hExpr arg1, Slvs_hExpr arg2)
 
     cpdef int coincident(self, Entity e1, Entity e2, Entity wp = *)
     cpdef int distance(self, Entity e1, Entity e2, double value, Entity wp = *)
