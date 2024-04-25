@@ -169,6 +169,19 @@ class Expression:
             arg2 = self.val[1].add_to_solver(solver)
         return solver.add_expression_node(op, 0, 0, arg1, arg2)
 
+    def constrain(self, solver) -> int:
+        h = self.add_to_solver(solver)
+        return solver.add_constraint(
+            Constraint.EQUATIONS,
+            _E_FREE_IN_3D,
+            0.0,
+            _E_NONE,
+            _E_NONE,
+            _E_NONE,
+            _E_NONE,
+            equations=h
+        )
+
     @classmethod
     def minimum(cls, *exprs: List[Expression]):
         if len(exprs) == 1:
