@@ -30,6 +30,8 @@ class Expression:
         MAX = 'max'
         NORM = 'norm'
         AND = 'and'
+        SQUARE = 'square'
+        SQRT = 'sqrt'
     PRETTY_REPR = True
     
     def __init__(self, *val, **kwargs):
@@ -49,6 +51,22 @@ class Expression:
     def max(self, other):
         return self.binary_op(other, op=Expression.Op.MAX)
     
+    def square(self):
+        return Expression(self, op=Expression.Op.SQUARE)
+
+    def sqrt(self):
+        return Expression(self, op=Expression.Op.SQRT)
+    
+    def norm(self):
+        return Expression(self, op=Expression.Op.NORM)
+
+    def __pow__(self, other):
+        if other == 2:
+            return self.square()
+        elif other == 1/2:
+            return self.sqrt()
+        raise ValueError('Only powers of 2 or 1/2 are supported.')
+
     def land(self, other):
         return self.binary_op(other, op=Expression.Op.AND)
 
@@ -117,6 +135,12 @@ class Expression:
             return str(self.val[0])
         elif self.op == Expression.Op.ABS:
             return f'| {str(self.val[0])} |'
+        elif self.op == Expression.Op.NORM:
+            return f'norm({str(self.val[0])})'
+        elif self.op == Expression.Op.SQRT:
+            return f'sqrt({str(self.val[0])})'
+        elif self.op == Expression.Op.SQUARE:
+            return f'({str(self.val[0])})**2'
         else:
             return f'({str(self.val[0])} {self.op.value} {str(self.val[1])})'
 
@@ -162,10 +186,16 @@ class Expression:
         elif self.op == self.Op.AND:
             arity = 2
             op = SLVS_X_AND
+        elif self.op == self.Op.SQUARE:
+            arity = 1
+            op = SLVS_X_SQUARE
+        elif self.op == self.Op.SQRT:
+            arity = 1
+            op = SLVS_X_SQRT
         
         arg1 = self.val[0].add_to_solver(solver)
         arg2 = 0
-        if arity > 0:
+        if arity > 1:
             arg2 = self.val[1].add_to_solver(solver)
         return solver.add_expression_node(op, 0, 0, arg1, arg2)
 
