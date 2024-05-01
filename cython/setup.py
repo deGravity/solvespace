@@ -16,6 +16,8 @@ from setuptools.command.sdist import sdist
 from distutils import file_util, dir_util
 from platform import system
 
+force_copy = True
+
 m_path = 'solvespace'
 include_path = join(m_path, 'include')
 src_path = join(m_path, 'src')
@@ -138,7 +140,7 @@ class Build(build_ext):
                 e.libraries.extend(['shell32', 'advapi32', 'Ws2_32'])
                 e.extra_compile_args = compile_args_msvc
         has_src = isdir(include_path) and isdir(src_path) and isdir(extlib_path)
-        if not has_src:
+        if force_copy or not has_src:
             copy_source(self.dry_run)
         # Pre-build MiMalloc
         if compiler in {'mingw32', 'unix'}:

@@ -418,17 +418,24 @@ void System::FindWhichToRemoveToFixJacobian(Group *g, List<hConstraint> *bad, bo
 
 SolveResult System::Solve(Group *g, int *rank, int *dof, List<hConstraint> *bad, bool andFindBad,
                           bool andFindFree, bool forceDofCheck) {
+
+#ifdef DEBUG_CPP
+    std::cerr << "Entering Solve, about to write equations" << std::endl;
+#endif
+
     WriteEquationsExceptFor(Constraint::NO_CONSTRAINT, g);
 
-    std::cout << "Equation List" << std::endl;
+#ifdef DEBUG_CPP
+    std::cerr << "Equations Written, Enumerating:" << std::endl;
+    std::cerr << "Equation List" << std::endl;
     for(auto ptr = this->eq.begin(); ptr != this->eq.end(); ++ptr) {
         std::cout << "h = " << ptr->h.v << " : " << ptr->e->Print() << std::endl;
     }
-    std::cout << "Param List" << std::endl;
+    std::cerr << "Param List" << std::endl;
     for(auto ptr = this->param.begin(); ptr != this->param.end(); ++ptr) {
         std::cout << "h = " << ssprintf("param(%08x)", ptr->h.v) << ", val = " << ptr->val << ", known = " << ptr->known << std::endl;
     }
-
+#endif
 
     bool rankOk;
 

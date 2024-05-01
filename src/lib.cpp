@@ -12,6 +12,8 @@
 #include <map>
 #include <tuple>
 
+#define DEBUG_CPP
+
 Sketch SolveSpace::SK = {};
 static System SYS;
 
@@ -216,17 +218,38 @@ Expr *GetExpression(Slvs_Expr *sexpr, ConstraintBase *c,
 }
 
 void AddEquality(Slvs_Expr *sexpr, ConstraintBase *c, int idx, std::map<Slvs_hExpr, Slvs_Expr *> &expressions, bool no_branch) {
+#ifdef DEBUG_CPP
+    std::cerr << "Getting LHS Expression" << std::endl;
+#endif
     auto lhs = GetExpression(expressions[sexpr->arg1], c, expressions, no_branch);
+#ifdef DEBUG_CPP
+    std::cerr << "Getting RHS Expression" << std::endl;
+#endif
     auto rhs = GetExpression(expressions[sexpr->arg2], c, expressions, no_branch);
+#ifdef DEBUG_CPP
+    std::cerr << "Adding Equality" << std::endl;
+#endif
     c->AddEq(&SYS.eq, lhs->Minus(rhs), idx);
 }
 
 void AddInequality(Slvs_Expr *sexpr, ConstraintBase *c, int idx, std::map<Slvs_hExpr, Slvs_Expr *> &expressions, bool no_branch) {
+#ifdef DEBUG_CPP
+    std::cerr << "Getting LHS Expression" << std::endl;
+#endif 
     auto lhs = GetExpression(expressions[sexpr->arg1], c, expressions, no_branch);
+#ifdef DEBUG_CPP
+    std::cerr << "Getting RHS Expression" << std::endl;
+#endif
     auto rhs = GetExpression(expressions[sexpr->arg2], c, expressions, no_branch);
-    
+
+#ifdef DEBUG_CPP
+    std::cerr << "Getting or making slack parameter" << std::endl;
+#endif
     Expr *slack;
     if(sexpr->param == 0) {
+#ifdef DEBUG_CPP
+        std::cerr << "Making slack parameter" << std::endl;
+#endif
         Param s = {};
         s.val   = rhs->Minus(lhs)->Eval(); // Initialize slack var so original ineq holds
         s.h     = SK.param.AddAndAssignId(&s);
@@ -234,11 +257,20 @@ void AddInequality(Slvs_Expr *sexpr, ConstraintBase *c, int idx, std::map<Slvs_h
         sexpr->param = s.h.v;
         slack        = Expr::From(s.h);
     } else {
+#ifdef DEBUG_CPP
+        std::cerr << "Getting Existing slack parameter" << std::endl;
+#endif
         hParam hp{sexpr->param};
         slack = Expr::From(hp);
     }
 
+#ifdef DEBUG_CPP
+    std::cerr << "Adding primary inequality equality" << std::endl;
+#endif
     c->AddEq(&SYS.eq, lhs->Minus(rhs)->Plus(slack), idx); // lhs <= rhs
+#ifdef DEBUG_CPP
+    std::cerr << "Getting adding slack bound equality" << std::endl;
+#endif
     c->AddEq(&SYS.eq, slack->Minus(slack->Abs()), idx + 1); // slack >= 0
 }
 
@@ -247,30 +279,62 @@ void AddEquationalConstraint(Slvs_hExpr rootExpr, ConstraintBase *c, std::map<Sl
     std::vector<Slvs_Expr*> equations;
     std::vector<Slvs_Expr*> to_explore;
 
+#ifdef DEBUG_CPP
+    std::cerr << "Finding conjunctions" << std::endl;
+    std::cerr << "Root = " << rootExpr << std::endl;
+#endif
+
     to_explore.push_back(expressions[rootExpr]);
     while(!to_explore.empty()) {
         Slvs_Expr *curr = to_explore.back();
+#ifdef DEBUG_CPP
+        std::cerr << "Curr = " << curr->h << std::endl;
+#endif
         to_explore.pop_back();
         switch(curr->type) {
         case SLVS_X_AND: 
+#ifdef DEBUG_CPP
+            std::cerr << "Found AND" << std::endl;
+#endif
             to_explore.push_back(expressions[curr->arg1]); 
             to_explore.push_back(expressions[curr->arg2]);
+#ifdef DEBUG_CPP
+            std::cerr << curr->arg1 << " AND " << curr->arg2 << std::endl;
+#endif
             break;
         case SLVS_X_EQUAL:
-        case SLVS_X_LTE: 
+#ifdef DEBUG_CPP
+            std::cerr << "Found Equality"<< std::endl;
+#endif
+        case SLVS_X_LTE:
+#ifdef DEBUG_CPP
+            std::cerr << "Fallthrough to inequality" << curr->h << std::endl;
+#endif
             equations.push_back(curr); 
             break;
         default: dbp("not an equivalence relation %d", curr->type); return;
         }
     }
+
+#ifdef DEBUG_CPP
+    std::cerr << "Adding Equalities and Inequalities" << std::endl;
+#endif
+
     int idx = 0;
     for(auto eq : equations) {
         switch(eq->type) {
         case SLVS_X_EQUAL:
+#ifdef DEBUG_CPP
+            std::cerr << "Adding an equality" << std::endl;
+#endif
             AddEquality(eq, c, idx, expressions, no_branch);
             idx += 1;
             break;
-        case SLVS_X_LTE: AddInequality(eq, c, idx, expressions, no_branch);
+        case SLVS_X_LTE:
+#ifdef DEBUG_CPP
+            std::cerr << "Adding an inequality" << std::endl;
+#endif 
+            AddInequality(eq, c, idx, expressions, no_branch);
             idx += 2;
             break;
             
@@ -280,6 +344,15 @@ void AddEquationalConstraint(Slvs_hExpr rootExpr, ConstraintBase *c, std::map<Sl
 
 void Slvs_Solve(Slvs_System *ssys, Slvs_hGroup shg)
 {
+
+#ifdef DEBUG_CPP
+    std::cerr << "Entering Slvs_Solve" << std::endl;
+#endif
+
+
+#ifdef DEBUG_CPP
+    std::cerr << "Adding Params" << std::endl;
+#endif
     int i;
     for(i = 0; i < ssys->params; i++) {
         Slvs_Param *sp = &(ssys->param[i]);
@@ -293,6 +366,9 @@ void Slvs_Solve(Slvs_System *ssys, Slvs_hGroup shg)
         }
     }
 
+#ifdef DEBUG_CPP
+    std::cerr << "Adding Entities" << std::endl;
+#endif
     for(i = 0; i < ssys->entities; i++) {
         Slvs_Entity *se = &(ssys->entity[i]);
         EntityBase e = {};
@@ -327,13 +403,24 @@ default: dbp("bad entity type %d", se->type); return;
 
         SK.entity.Add(&e);
     }
+
+
+#ifdef DEBUG_CPP
+    std::cerr << "Populating Expression Map" << std::endl;
+#endif
     
     std::map<Slvs_hExpr, Slvs_Expr *> expressions;
     for(i = 0; i < ssys->exprs; ++i) {
         Slvs_Expr *expr = &(ssys->expr[i]);
         expressions[expr->h] = expr;
+#ifdef DEBUG_CPP
+    std::cerr << "\texpressions[" << expr->h << "] = " << expr->type << "( " << expr->arg1 << " , " << expr->arg2 << " )" << std::endl;
+#endif
     }
     
+#ifdef DEBUG_CPP
+    std::cerr << "Adding Constraints" << std::endl;
+#endif
     std::vector<std::tuple<hConstraint, Slvs_hExpr>> equational_constraints;
     IdList<Param, hParam> params = {};
     for(i = 0; i < ssys->constraints; i++) {
@@ -413,6 +500,9 @@ default: dbp("bad constraint type %d", sc->type); return;
 
         // Compromise solution; set up the expressions here
         if(sc->type == SLVS_C_EQUATIONS && shg % sc->group == 0) {
+#ifdef DEBUG_CPP
+            std::cerr << "Adding an Equational Constraint" << std::endl;
+#endif
             AddEquationalConstraint(sc->equations, &c, expressions, true);
             equational_constraints.push_back(std::make_tuple(c.h, sc->equations));
         }
@@ -437,7 +527,17 @@ default: dbp("bad constraint type %d", sc->type); return;
 
     bool done = false;
         SolveResult how;
+
+#ifdef DEBUG_CPP
+    std::cerr << "Beginning Solve Loop" << std::endl;
+    int num_iterations = 0;
+#endif
+
     while(!done) {
+
+#ifdef DEBUG_CPP
+        std::cerr << "Beginning solve " << ++num_iterations << std::endl;
+#endif
         how =
             SYS.Solve(&g, NULL, &(ssys->dof), &bad, andFindBad, /*andFindFree=*/false);
 
