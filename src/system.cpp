@@ -13,6 +13,8 @@
 
 #include <iostream>
 
+#define DEBUG_CPP
+
 // The solver will converge all unknowns to within this tolerance. This must
 // always be much less than LENGTH_EPS, and in practice should be much less.
 const double System::CONVERGE_TOLERANCE = (LENGTH_EPS/(1e2));
@@ -429,11 +431,11 @@ SolveResult System::Solve(Group *g, int *rank, int *dof, List<hConstraint> *bad,
     std::cerr << "Equations Written, Enumerating:" << std::endl;
     std::cerr << "Equation List" << std::endl;
     for(auto ptr = this->eq.begin(); ptr != this->eq.end(); ++ptr) {
-        std::cout << "h = " << ptr->h.v << " : " << ptr->e->Print() << std::endl;
+        std::cerr << "\th = " << ptr->h.v << " : " << ptr->e->Print() << std::endl;
     }
     std::cerr << "Param List" << std::endl;
     for(auto ptr = this->param.begin(); ptr != this->param.end(); ++ptr) {
-        std::cout << "h = " << ssprintf("param(%08x)", ptr->h.v) << ", val = " << ptr->val << ", known = " << ptr->known << std::endl;
+        std::cerr << "\th = " << ssprintf("param(%08x)", ptr->h.v) << ", val = " << ptr->val << ", known = " << ptr->known << std::endl;
     }
 #endif
 
@@ -450,6 +452,9 @@ SolveResult System::Solve(Group *g, int *rank, int *dof, List<hConstraint> *bad,
         dbp("   param %08x at %.3f", param[x].h.v, param[x].val);
     } */
 
+#ifdef DEBUG_CPP
+    std::cerr << "Clearing tags" << std::endl;
+#endif
     // All params and equations are assigned to group zero.
     param.ClearTags();
     eq.ClearTags();
@@ -457,7 +462,13 @@ SolveResult System::Solve(Group *g, int *rank, int *dof, List<hConstraint> *bad,
     // Since we are suppressing dof calculation or allowing redundant, we
     // can't / don't want to catch result of dof checking without substitution
     if(g->suppressDofCalculation || g->allowRedundant || !forceDofCheck) {
+#ifdef DEBUG_CPP
+        std::cerr << "About to try Solving by Substitution" << std::endl;
+#endif
         SolveBySubstitution();
+#ifdef DEBUG_CPP
+        std::cerr << "Finished Solving by Substitution" << std::endl;
+#endif
     }
 
     /*
@@ -491,28 +502,66 @@ SolveResult System::Solve(Group *g, int *rank, int *dof, List<hConstraint> *bad,
     }
     */
 
+#ifdef DEBUG_CPP
+    std::cerr << "About to try Writing Jacobian" << std::endl;
+#endif
     // Now write the Jacobian for what's left, and do a rank test; that
     // tells us if the system is inconsistently constrained.
     if(!WriteJacobian(0)) {
+#ifdef DEBUG_CPP
+        std::cerr << "Writing Jacobian failed -> TOO_MANY_UNKNOWNS" << std::endl;
+#endif
         return SolveResult::TOO_MANY_UNKNOWNS;
     }
     // Clear dof value in order to have indication when dof is actually not calculated
     if(dof != NULL) *dof = -1;
+
+#ifdef DEBUG_CPP
+    if (!g->suppressDofCalculation && !g->allowRedundant) {
+        std::cerr << "About to TestRank because not suppressing or allowing redundant" << std::endl;
+    }
+#endif
     // We are suppressing or allowing redundant, so we no need to catch unsolveable + redundant
     rankOk = (!g->suppressDofCalculation && !g->allowRedundant) ? TestRank(dof) : true;
 
+#ifdef DEBUG_CPP
+        std::cerr << "About to start the Newton Solve" << std::endl;
+#endif
     // And do the leftovers as one big system
     if(!NewtonSolve(0)) {
+#ifdef DEBUG_CPP
+        std::cerr << "Newton Solve Didn't Converge" << std::endl;
+#endif
         goto didnt_converge;
     }
+
+#ifdef DEBUG_CPP
+    std::cerr << "Finished Newton solve" << std::endl;
+    if (!g->suppressDofCalculation) {
+        std::cerr << "About to TestRank" << std::endl;
+    }
+#endif
 
     // Here we are want to calculate dof even when redundant is allowed, so just handle suppressing
     rankOk = (!g->suppressDofCalculation) ? TestRank(dof) : true;
     if(!rankOk) {
+#ifdef DEBUG_CPP
+        std::cerr << "Rank not okay" << std::endl;
+        if (andFindBad) {
+            std::cerr << "About to FindWhichToRemoveToFixJacobian" << std::endl;
+        }
+#endif
         if(andFindBad) FindWhichToRemoveToFixJacobian(g, bad, forceDofCheck);
     } else {
+#ifdef DEBUG_CPP
+        std::cerr << "Rank okay, marking params free" << std::endl;
+#endif
         MarkParamsFree(andFindFree);
     }
+
+#ifdef DEBUG_CPP
+    std::cerr << "About to write solved params back to param table" << std::endl;
+#endif
     // System solved correctly, so write the new values back in to the
     // main parameter table.
     for(auto &p : param) {

@@ -536,7 +536,9 @@ default: dbp("bad constraint type %d", sc->type); return;
     while(!done) {
 
 #ifdef DEBUG_CPP
-        std::cerr << "Beginning solve " << ++num_iterations << std::endl;
+        std::cerr << "=======================================================" << std::endl;
+        std::cerr << "========== Beginning solve " << ++num_iterations << "============" << std::endl;
+        std::cerr << "=======================================================" << std::endl;
 #endif
         how =
             SYS.Solve(&g, NULL, &(ssys->dof), &bad, andFindBad, /*andFindFree=*/false);
