@@ -623,6 +623,14 @@ default: dbp("bad constraint type %d", sc->type); return;
         ssys->faileds = bad.n;
     }
 
+    // Reset param pointers for inequality slack variables
+    for(i = 0; i < ssys->exprs; i++) {
+        Slvs_Expr *se = &(ssys->expr[i]);
+        if(se->type == SLVS_X_LTE) {
+            se->param = 0;
+        }
+    }
+
     bad.Clear();
     SYS.param.Clear();
     SYS.entity.Clear();

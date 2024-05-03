@@ -27,6 +27,48 @@ static void *CheckMalloc(size_t n)
     return r;
 }
 
+void CrashRepro() {
+    Slvs_hGroup g;
+    g = 5;
+    sys.param[sys.params++] = Slvs_MakeParam(1, g, 3.0);
+    g = 3;
+    sys.expr[sys.exprs++]   = Slvs_MakeExpr_Param(0, 1);
+    sys.expr[sys.exprs++]   = Slvs_MakeExpr_Const(1, 2.0);
+    sys.expr[sys.exprs++]   = Slvs_MakeExpr_LTE(2, 0, 1);
+
+    sys.constraint[sys.constraints++] =
+        Slvs_MakeConstraint(1, g, SLVS_C_EQUATIONS, 200, 0, 0, 0, 0, 0, 2);
+
+
+
+    sys.calculateFaileds = 0;
+    
+    g = 15;
+    /* And solve. */
+    Slvs_Solve(&sys, g);
+
+    printf("\nFirst Solve Result: ");
+    switch(sys.result) {
+    case SLVS_RESULT_OKAY: printf("OKAY"); break;
+    case SLVS_RESULT_DIDNT_CONVERGE: printf("DIDNT_CONVERGE"); break;
+    case SLVS_RESULT_REDUNDANT_OKAY: printf("REDUNDANT_OKAY"); break;
+    case SLVS_RESULT_INCONSISTENT: printf("REDUNDANT_DIDNT_CONVERGE"); break;
+    case SLVS_RESULT_TOO_MANY_UNKNOWNS: printf("TOO_MANY_UNKNOWNS"); break;
+    }
+
+    g = 15;
+    /* And solve. */
+    Slvs_Solve(&sys, g);
+
+    printf("\nSecond Solve Result: ");
+    switch(sys.result) {
+    case SLVS_RESULT_OKAY: printf("OKAY"); break;
+    case SLVS_RESULT_DIDNT_CONVERGE: printf("DIDNT_CONVERGE"); break;
+    case SLVS_RESULT_REDUNDANT_OKAY: printf("REDUNDANT_OKAY"); break;
+    case SLVS_RESULT_INCONSISTENT: printf("REDUNDANT_DIDNT_CONVERGE"); break;
+    case SLVS_RESULT_TOO_MANY_UNKNOWNS: printf("TOO_MANY_UNKNOWNS"); break;
+    }
+}
 
 void ExampleIneq() {
     Slvs_hGroup g;
@@ -179,7 +221,7 @@ int main()
     sys.failed  = CheckMalloc(50*sizeof(sys.failed[0]));
     sys.faileds = 50;
     
-    ExampleIneq();
+    CrashRepro();
     
 
     /*Example3d();*/
