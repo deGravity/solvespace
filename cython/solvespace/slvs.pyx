@@ -32,6 +32,10 @@ class Expression:
         AND = 'and'
         SQUARE = 'square'
         SQRT = 'sqrt'
+        SIN = 'sin'
+        COS = 'cos'
+        ASIN = 'asin'
+        ACOS = 'acos'
     PRETTY_REPR = True
     
     def __init__(self, *val, **kwargs):
@@ -59,6 +63,15 @@ class Expression:
     
     def norm(self):
         return Expression(self, op=Expression.Op.NORM)
+    
+    def sin(self):
+        return Expression(self, op=Expression.Op.SIN)
+    def cos(self):
+        return Expression(self, op=Expression.Op.COS)
+    def asin(self):
+        return Expression(self, op=Expression.Op.ASIN)
+    def acos(self):
+        return Expression(self, op=Expression.Op.ACOS)
 
     def __pow__(self, other):
         if other == 2:
@@ -141,6 +154,14 @@ class Expression:
             return f'sqrt({str(self.val[0])})'
         elif self.op == Expression.Op.SQUARE:
             return f'({str(self.val[0])})**2'
+        elif self.op == Expression.Op.SIN:
+            return f'sin({str(self.val[0])})'
+        elif self.op == Expression.Op.COS:
+            return f'cos({str(self.val[0])})'
+        elif self.op == Expression.Op.ASIN:
+            return f'asin({str(self.val[0])})'
+        elif self.op == Expression.Op.ACOS:
+            return f'acos({str(self.val[0])})'
         else:
             return f'({str(self.val[0])} {self.op.value} {str(self.val[1])})'
 
@@ -192,6 +213,18 @@ class Expression:
         elif self.op == self.Op.SQRT:
             arity = 1
             op = SLVS_X_SQRT
+        elif self.op == self.Op.SIN:
+            arity = 1
+            op = SLVS_X_SIN
+        elif self.op == self.Op.COS:
+            arity = 1
+            op = SLVS_X_COS
+        elif self.op == self.Op.ASIN:
+            arity = 1
+            op = SLVS_X_ASIN
+        elif self.op == self.Op.ACOS:
+            arity = 1
+            op = SLVS_X_ACOS
         
         arg1 = self.val[0].add_to_solver(solver)
         arg2 = 0
