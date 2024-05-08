@@ -12,7 +12,7 @@
 #include <map>
 #include <tuple>
 
-#define DEBUG_CPP
+//#define DEBUG_CPP
 
 Sketch SolveSpace::SK = {};
 static System SYS;
@@ -528,16 +528,17 @@ default: dbp("bad constraint type %d", sc->type); return;
     bool done = false;
         SolveResult how;
 
+    int num_iterations = 0;
 #ifdef DEBUG_CPP
     std::cerr << "Beginning Solve Loop" << std::endl;
-    int num_iterations = 0;
+    
 #endif
 
     while(!done) {
-
+        ++num_iterations;
 #ifdef DEBUG_CPP
         std::cerr << "=======================================================" << std::endl;
-        std::cerr << "========== Beginning solve " << ++num_iterations << "============" << std::endl;
+        std::cerr << "========== Beginning solve " << num_iterations << "============" << std::endl;
         std::cerr << "=======================================================" << std::endl;
 #endif
         how =
@@ -630,6 +631,8 @@ default: dbp("bad constraint type %d", sc->type); return;
             se->param = 0;
         }
     }
+
+    ssys->iterations = num_iterations;
 
     bad.Clear();
     SYS.param.Clear();

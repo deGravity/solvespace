@@ -13,7 +13,7 @@
 
 #include <iostream>
 
-#define DEBUG_CPP
+//#define DEBUG_CPP
 
 // The solver will converge all unknowns to within this tolerance. This must
 // always be much less than LENGTH_EPS, and in practice should be much less.

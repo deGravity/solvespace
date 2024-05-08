@@ -148,6 +148,7 @@ cdef extern from "slvs.h" nogil:
         Slvs_hConstraint *failed
         int faileds
         int dof
+        int iterations
         int result
 
     void Slvs_Solve(Slvs_System *sys, Slvs_hGroup hg)
@@ -301,6 +302,7 @@ cdef class Entity:
 cdef class SolverSystem:
 
     cdef int dof_v
+    cdef int iterations_v
     cdef Slvs_hGroup g
     cdef vector[Slvs_Param] param_list
     cdef vector[Slvs_Entity] entity_list
@@ -315,6 +317,7 @@ cdef class SolverSystem:
     cpdef void set_params(self, Params p, object params)
     cpdef list params(self, Params p)
     cpdef int dof(self)
+    cpdef int iterations(self)
     cpdef object constraints(self)
     cpdef list failures(self)
     cdef int solve_c(self) nogil

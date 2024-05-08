@@ -238,6 +238,9 @@ typedef struct {
     /* The solver indicates the number of unconstrained degrees of freedom. */
     int                 dof;
 
+    /* The number of solution iterations attempted*/
+    int                 iterations;
+
     /* The solver indicates whether the solution succeeded. */
 #define SLVS_RESULT_OKAY                0
 #define SLVS_RESULT_INCONSISTENT        1

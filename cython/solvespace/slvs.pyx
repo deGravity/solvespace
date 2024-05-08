@@ -232,8 +232,22 @@ class Expression:
             arg2 = self.val[1].add_to_solver(solver)
         return solver.add_expression_node(op, 0, 0, arg1, arg2)
 
-    def constrain(self, solver) -> int:
+    def constrain(self, solver, name: str = None) -> int:
         h = self.add_to_solver(solver)
+        
+        if solver.is_wrapper():
+            return solver.add_constraint(
+                Constraint.EQUATIONS,
+                _E_FREE_IN_3D,
+                0.0,
+                _E_NONE,
+                _E_NONE,
+                _E_NONE,
+                _E_NONE,
+                equations=h,
+                name=name
+            )
+        
         return solver.add_constraint(
             Constraint.EQUATIONS,
             _E_FREE_IN_3D,
@@ -632,6 +646,9 @@ cdef class SolverSystem:
             raise IndexError(f"index {i} is out of bound {self.entity_list.size()}")
         else:
             return Entity.create(&self.entity_list[i])
+    
+    def is_wrapper(self) -> bool:
+        return False
 
     cpdef SolverSystem copy(self):
         """Copy the solver."""
@@ -646,6 +663,7 @@ cdef class SolverSystem:
         self.expr_list.clear()
         self.cons_list.clear()
         self.failed_list.clear()
+        self.iterations_v = 0
 
     cpdef void set_group(self, size_t g):
         """Set the current group (`g`)."""
@@ -686,6 +704,12 @@ cdef class SolverSystem:
         """
         return self.dof_v
 
+    cpdef int iterations(self):
+        """Return the number of solver iterations tried.
+        Only can be called after solved.
+        """
+        return self.iterations_v
+
     cpdef object constraints(self):
         """Return the number of each constraint type.
         The name of constraints is represented by string.
@@ -723,6 +747,7 @@ cdef class SolverSystem:
         Slvs_Solve(&sys, self.g)
         self.failed_list.resize(sys.faileds)
         self.dof_v = sys.dof
+        self.iterations_v = sys.iterations
         return sys.result
 
     def solve(self):
