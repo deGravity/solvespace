@@ -345,6 +345,8 @@ void AddEquationalConstraint(Slvs_hExpr rootExpr, ConstraintBase *c, std::map<Sl
 void Slvs_Solve(Slvs_System *ssys, Slvs_hGroup *shg, int hgs)
 {
 
+    //std::cout << "Calling Slvs_Solve" << std::endl;
+
 #ifdef DEBUG_CPP
     std::cerr << "Entering Slvs_Solve" << std::endl;
 #endif
@@ -553,9 +555,10 @@ default: dbp("bad constraint type %d", sc->type); return;
         std::cerr << "========== Beginning solve " << num_iterations << "============" << std::endl;
         std::cerr << "=======================================================" << std::endl;
 #endif
+        //std::cout << "Calling Solve for iteration " << num_iterations << std::endl;
         how =
-            SYS.Solve(g, NULL, &(ssys->dof), &bad, andFindBad, /*andFindFree=*/false);
-
+            SYS.Solve(g, NULL, &(ssys->dof), &bad, andFindBad, /*andFindFree=*/false, /*forceDofCheck*/false, hgs);
+        //std::cout << "Solve Completed" << std::endl;
         switch(how) {
             case SolveResult::OKAY:
             case SolveResult::REDUNDANT_OKAY:
