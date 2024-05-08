@@ -151,7 +151,7 @@ cdef extern from "slvs.h" nogil:
         int iterations
         int result
 
-    void Slvs_Solve(Slvs_System *sys, Slvs_hGroup hg)
+    void Slvs_Solve(Slvs_System *sys, Slvs_hGroup *hg, int hgs)
     void Slvs_QuaternionU(
         double qw, double qx, double qy, double qz,
         double *x, double *y, double *z
@@ -320,7 +320,7 @@ cdef class SolverSystem:
     cpdef int iterations(self)
     cpdef object constraints(self)
     cpdef list failures(self)
-    cdef int solve_c(self) nogil
+    cdef int solve_c(self, vector[Slvs_hGroup] groups) nogil
 
     cpdef size_t param_len(self)
     cpdef size_t entity_len(self)

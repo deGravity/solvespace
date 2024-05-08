@@ -724,7 +724,7 @@ cdef class SolverSystem:
         """Return a list of failed constraint numbers."""
         return self.failed_list
 
-    cdef int solve_c(self) nogil:
+    cdef int solve_c(self, vector[Slvs_hGroup] groups) nogil:
         """Start the solving, return the result flag."""
         cdef Slvs_System sys
         # Parameters
@@ -744,14 +744,19 @@ cdef class SolverSystem:
         sys.failed = self.failed_list.data()
         sys.faileds = self.failed_list.size()
         # Solve
-        Slvs_Solve(&sys, self.g)
+        Slvs_Solve(&sys, groups.data(), groups.size())
         self.failed_list.resize(sys.faileds)
         self.dof_v = sys.dof
         self.iterations_v = sys.iterations
         return sys.result
 
-    def solve(self):
-        return ResultFlag(self.solve_c())
+    def solve(self, groups=[]):
+        cdef vector[Slvs_hGroup] solve_groups
+        if len(groups) == 0:
+            solve_groups.push_back(self.g)
+        for g in groups:
+            solve_groups.push_back(g)
+        return ResultFlag(self.solve_c(solve_groups))
 
     cpdef size_t param_len(self):
         """The length of parameter list."""
