@@ -342,7 +342,7 @@ void AddEquationalConstraint(Slvs_hExpr rootExpr, ConstraintBase *c, std::map<Sl
     }
 }
 
-void Slvs_Solve(Slvs_System *ssys, Slvs_hGroup shg)
+void Slvs_Solve(Slvs_System *ssys, Slvs_hGroup *shg, int hgs)
 {
 
 #ifdef DEBUG_CPP
@@ -361,8 +361,11 @@ void Slvs_Solve(Slvs_System *ssys, Slvs_hGroup shg)
         p.h.v = sp->h;
         p.val = sp->val;
         SK.param.Add(&p);
-        if(shg % sp->group == 0) { // Hack - Factorizable Groups
-            SYS.param.Add(&p);
+        for(int i = 0; i < hgs; ++i) {
+            if(shg[i] == sp->group) {
+                SYS.param.Add(&p);
+                break;
+            }
         }
     }
 
@@ -499,12 +502,17 @@ default: dbp("bad constraint type %d", sc->type); return;
         }
 
         // Compromise solution; set up the expressions here
-        if(sc->type == SLVS_C_EQUATIONS && shg % sc->group == 0) {
+        if(sc->type == SLVS_C_EQUATIONS) {
+            for(int i = 0; i < hgs; ++i) {
+                if(shg[i] == sc->group) {
 #ifdef DEBUG_CPP
-            std::cerr << "Adding an Equational Constraint" << std::endl;
+                    std::cerr << "Adding an Equational Constraint" << std::endl;
 #endif
-            AddEquationalConstraint(sc->equations, &c, expressions, true);
-            equational_constraints.push_back(std::make_tuple(c.h, sc->equations));
+                    AddEquationalConstraint(sc->equations, &c, expressions, true);
+                    equational_constraints.push_back(std::make_tuple(c.h, sc->equations));
+                    break;
+                }
+            }
         }
 
         SK.constraint.Add(&c);
@@ -517,8 +525,12 @@ default: dbp("bad constraint type %d", sc->type); return;
         }
     }
 
-    Group g = {};
-    g.h.v = shg;
+    Group *g = new Group[hgs]{};
+    for(int i = 0; i < hgs; ++i) {
+        g[i].h.v = shg[i];
+    }
+    //Group g = {};
+    //g.h.v = shg;
 
     List<hConstraint> bad = {};
 
@@ -542,7 +554,7 @@ default: dbp("bad constraint type %d", sc->type); return;
         std::cerr << "=======================================================" << std::endl;
 #endif
         how =
-            SYS.Solve(&g, NULL, &(ssys->dof), &bad, andFindBad, /*andFindFree=*/false);
+            SYS.Solve(g, NULL, &(ssys->dof), &bad, andFindBad, /*andFindFree=*/false);
 
         switch(how) {
             case SolveResult::OKAY:
@@ -561,7 +573,7 @@ default: dbp("bad constraint type %d", sc->type); return;
             auto eq = std::get<1>(p);
             AddEquationalConstraint(eq, c, expressions, false);
         }
-        SYS.WriteEquationsExceptFor(Constraint::NO_CONSTRAINT, &g);
+        SYS.WriteEquationsExceptFor(Constraint::NO_CONSTRAINT, g, hgs);
         // Check Convergence with branching
         std::vector<double> constraint_values;
         bool converged = true;
@@ -643,6 +655,8 @@ default: dbp("bad constraint type %d", sc->type); return;
     SK.param.Clear();
     SK.entity.Clear();
     SK.constraint.Clear();
+
+    delete[] g;
 
     FreeAllTemporary();
 }

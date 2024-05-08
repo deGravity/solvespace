@@ -337,11 +337,18 @@ bool System::NewtonSolve(int tag) {
     return converged;
 }
 
-void System::WriteEquationsExceptFor(hConstraint hc, Group *g) {
+void System::WriteEquationsExceptFor(hConstraint hc, Group *g, int nGroups) {
     // Generate all the equations from constraints in this group
     for(auto &con : SK.constraint) {
         ConstraintBase *c = &con;
-        if (g->h.v % c->group.v != 0) continue; //(c->group != g->h) continue; -- Hack: Factorizable Groups
+        bool in_groups    = false;
+        for(int i = 0; i < nGroups; ++i) {
+            if(g[i].h.v == c->group.v) {
+                in_groups = true;
+                break;
+            }
+        }
+        if (!in_groups) continue; //(c->group != g->h) continue; -- Hack: Factorizable Groups
         if(c->h == hc) continue;
 
         if(c->HasLabel() && c->type != Constraint::Type::COMMENT &&
@@ -364,7 +371,14 @@ void System::WriteEquationsExceptFor(hConstraint hc, Group *g) {
     // And the equations from entities
     for(auto &ent : SK.entity) {
         EntityBase *e = &ent;
-        if (g->h.v % e->group.v != 0) continue; //(e->group != g->h) continue; -- Hack: Factorizable Groups
+        bool in_groups = false;
+        for(int i = 0; i < nGroups; ++i) {
+            if(g[i].h.v == e->group.v) {
+                in_groups = true;
+                break;
+            }
+        }
+        if (!in_groups) continue; //(e->group != g->h) continue; -- Hack: Factorizable Groups
 
         e->GenerateEquations(&eq);
     }
@@ -372,7 +386,8 @@ void System::WriteEquationsExceptFor(hConstraint hc, Group *g) {
     g->GenerateEquations(&eq);
 }
 
-void System::FindWhichToRemoveToFixJacobian(Group *g, List<hConstraint> *bad, bool forceDofCheck) {
+void System::FindWhichToRemoveToFixJacobian(Group *g, List<hConstraint> *bad, bool forceDofCheck,
+                                            int nGroups) {
     auto time = GetMilliseconds();
     g->solved.timeout = false;
     int a;
@@ -385,7 +400,14 @@ void System::FindWhichToRemoveToFixJacobian(Group *g, List<hConstraint> *bad, bo
             }
 
             ConstraintBase *c = &con;
-            if (g->h.v % c->group.v != 0) continue; // (c->group != g->h) continue; -- Hack: Factorizable Groups
+            bool in_groups    = false;
+            for(int i = 0; i < nGroups; ++i) {
+                if(g[i].h.v == c->group.v) {
+                    in_groups = true;
+                    break;
+                }
+            }
+            if (!in_groups) continue; // (c->group != g->h) continue; -- Hack: Factorizable Groups
             if((c->type == Constraint::Type::POINTS_COINCIDENT && a == 0) ||
                (c->type != Constraint::Type::POINTS_COINCIDENT && a == 1))
             {
@@ -397,7 +419,7 @@ void System::FindWhichToRemoveToFixJacobian(Group *g, List<hConstraint> *bad, bo
 
             param.ClearTags();
             eq.Clear();
-            WriteEquationsExceptFor(c->h, g);
+            WriteEquationsExceptFor(c->h, g, nGroups);
             eq.ClearTags();
 
             // It's a major speedup to solve the easy ones by substitution here,
@@ -419,13 +441,13 @@ void System::FindWhichToRemoveToFixJacobian(Group *g, List<hConstraint> *bad, bo
 }
 
 SolveResult System::Solve(Group *g, int *rank, int *dof, List<hConstraint> *bad, bool andFindBad,
-                          bool andFindFree, bool forceDofCheck) {
+                          bool andFindFree, bool forceDofCheck, int nGroups) {
 
 #ifdef DEBUG_CPP
     std::cerr << "Entering Solve, about to write equations" << std::endl;
 #endif
 
-    WriteEquationsExceptFor(Constraint::NO_CONSTRAINT, g);
+    WriteEquationsExceptFor(Constraint::NO_CONSTRAINT, g, nGroups);
 
 #ifdef DEBUG_CPP
     std::cerr << "Equations Written, Enumerating:" << std::endl;

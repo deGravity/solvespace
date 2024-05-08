@@ -270,9 +270,9 @@ public:
     bool WriteJacobian(int tag);
     void EvalJacobian();
 
-    void WriteEquationsExceptFor(hConstraint hc, Group *g);
-    void FindWhichToRemoveToFixJacobian(Group *g, List<hConstraint> *bad,
-                                        bool forceDofCheck);
+    void WriteEquationsExceptFor(hConstraint hc, Group *g, int nGroups = 1);
+    void FindWhichToRemoveToFixJacobian(Group *g, List<hConstraint> *bad, bool forceDofCheck,
+                                        int nGroups = 1);
     void SolveBySubstitution();
 
     bool IsDragged(hParam p);
@@ -284,7 +284,7 @@ public:
     SolveResult Solve(Group *g, int *rank = NULL, int *dof = NULL,
                       List<hConstraint> *bad = NULL,
                       bool andFindBad = false, bool andFindFree = false,
-                      bool forceDofCheck = false);
+                      bool forceDofCheck = false, int nGroups = 1 );
 
     SolveResult SolveRank(Group *g, int *rank = NULL, int *dof = NULL,
                           List<hConstraint> *bad = NULL,

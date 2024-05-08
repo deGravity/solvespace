@@ -250,7 +250,7 @@ typedef struct {
     int                 result;
 } Slvs_System;
 
-DLL void Slvs_Solve(Slvs_System *sys, Slvs_hGroup hg);
+DLL void Slvs_Solve(Slvs_System *sys, Slvs_hGroup *hg, int hgs);
 
 DLL void Test_Ineq();
 

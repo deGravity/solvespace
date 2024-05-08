@@ -43,9 +43,9 @@ void CrashRepro() {
 
     sys.calculateFaileds = 0;
     
-    g = 15;
+    Slvs_hGroup solveGroup[2] = {3, 5};
     /* And solve. */
-    Slvs_Solve(&sys, g);
+    Slvs_Solve(&sys, solveGroup, 2);
 
     printf("\nFirst Solve Result: ");
     switch(sys.result) {
@@ -56,9 +56,8 @@ void CrashRepro() {
     case SLVS_RESULT_TOO_MANY_UNKNOWNS: printf("TOO_MANY_UNKNOWNS"); break;
     }
 
-    g = 15;
     /* And solve. */
-    Slvs_Solve(&sys, g);
+    Slvs_Solve(&sys, solveGroup, 2);
 
     printf("\nSecond Solve Result: ");
     switch(sys.result) {
@@ -167,7 +166,7 @@ void ExampleIneq() {
     sys.calculateFaileds = 0;
 
     /* And solve. */
-    Slvs_Solve(&sys, g);
+    Slvs_Solve(&sys, &g, 1);
 
     
     printf("Solve Result: ");
