@@ -1278,7 +1278,7 @@ cdef class SolverSystem:
         else:
             raise TypeError(f"unsupported entities: {e1}, {e2}, {wp}")
 
-    cpdef int tangent(self, Entity e1, Entity e2, Entity wp = _E_FREE_IN_3D):
+    cpdef int tangent(self, Entity e1, Entity e2, Entity wp = _E_FREE_IN_3D, bint other = False, bint other2 = False):
         """Parallel constraint between two entities (`e1` and `e2`) on the
         work plane (`wp`).
 
@@ -1291,13 +1291,13 @@ cdef class SolverSystem:
         if e1.is_arc() and e2.is_line_2d():
             if wp is _E_FREE_IN_3D:
                 raise ValueError("this is a 2d constraint")
-            return self.add_constraint(SLVS_C_ARC_LINE_TANGENT, wp, 0., _E_NONE, _E_NONE, e1, e2)
+            return self.add_constraint(SLVS_C_ARC_LINE_TANGENT, wp, 0., _E_NONE, _E_NONE, e1, e2, other=other, other2=other2)
         elif e1.is_cubic() and e2.is_line_3d() and wp is _E_FREE_IN_3D:
-            return self.add_constraint(SLVS_C_CUBIC_LINE_TANGENT, wp, 0., _E_NONE, _E_NONE, e1, e2)
+            return self.add_constraint(SLVS_C_CUBIC_LINE_TANGENT, wp, 0., _E_NONE, _E_NONE, e1, e2, other=other, other2=other2)
         elif (e1.is_arc() or e1.is_cubic()) and (e2.is_arc() or e2.is_cubic()):
             if wp is _E_FREE_IN_3D:
                 raise ValueError("this is a 2d constraint")
-            return self.add_constraint(SLVS_C_CURVE_CURVE_TANGENT, wp, 0., _E_NONE, _E_NONE, e1, e2)
+            return self.add_constraint(SLVS_C_CURVE_CURVE_TANGENT, wp, 0., _E_NONE, _E_NONE, e1, e2, other=other, other2=other2)
         else:
             raise TypeError(f"unsupported entities: {e1}, {e2}, {wp}")
 

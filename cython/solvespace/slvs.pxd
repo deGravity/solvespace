@@ -380,7 +380,7 @@ cdef class SolverSystem:
     cpdef int angle(self, Entity e1, Entity e2, double value, Entity wp = *, bint inverse = *)
     cpdef int perpendicular(self, Entity e1, Entity e2, Entity wp = *, bint inverse = *)
     cpdef int parallel(self, Entity e1, Entity e2, Entity wp = *)
-    cpdef int tangent(self, Entity e1, Entity e2, Entity wp = *)
+    cpdef int tangent(self, Entity e1, Entity e2, Entity wp = *, bint other = *, bint other2 = *)
     cpdef int distance_proj(self, Entity e1, Entity e2, double value)
     cpdef int dragged(self, Entity e1, Entity wp = *)
     cpdef int length_diff(self, Entity e1, Entity e2, double value, Entity wp = *)
