@@ -1299,6 +1299,7 @@ s:
             if(refs) refs->push_back(ref);
             return;
         }
+	default:
     }
     ssassert(false, "Unexpected constraint type");
 }
