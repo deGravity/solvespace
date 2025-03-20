@@ -232,7 +232,7 @@ class Expression:
             arg2 = self.val[1].add_to_solver(solver)
         return solver.add_expression_node(op, 0, 0, arg1, arg2)
 
-    def constrain(self, solver, name: str = None) -> int:
+    def constrain(self, solver, name: dict = None) -> int:
         h = self.add_to_solver(solver)
         
         if solver.is_wrapper():
